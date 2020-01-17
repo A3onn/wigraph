@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
 import dpkt, pprint
+import networkx as nx
+import matplotlib.pyplot as plt
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -11,10 +13,15 @@ def dbgPrint(p):
 #----------------------------
 
 # CONSTANTS
+G=nx.Graph()
+
 INFRASTRUCTURE = "Infrastructure"
 AD_HOC = "AD-HOC"
 
+AP_T = 0
+CLIENT_T = 1
 
+# CLASSES
 class AP:
     def __init__(self, bssid="", ssid="", ch=-1, enc="", type="", rates=[]):
         self.bssid = bssid
@@ -77,25 +84,22 @@ class Client:
         return f"probed = {self.probes}"
 
 
-
-aps = {} # mac as key and AP instance as value
-def addAP(mac, ap):
-    if not mac in aps: # if first time seeing ap
-        aps.update({mac: ap})
-    else: # if not, updating its attributes
-        aps[mac] % ap
-
-clients = {} # mac as key and Client instance as value
-def addClient(mac, client):
-    if not mac in clients: # if first time seeing client
-        clients.update({mac: client})
-    else: # if not, updating its attributes
-        clients[mac] % client
-
+# FUNCTIONS
 def toRates(raw):
     # supported, basics
     return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
 
+def addAP(mac, ap):
+    if not mac in G.nodes: # if first time seeing ap
+        G.add_node(mac, type=AP_T, value=ap)
+    else: # if not, updating its attributes
+        G.nodes[mac]["value"] % ap
+
+def addClient(mac, client):
+    if not mac in G.nodes: # if first time seeing client
+        G.add_node(mac, type=CLIENT_T, value=client)
+    else: # if not, updating its attributes
+        G.nodes[mac]["value"] % client
 
 
 
@@ -130,14 +134,12 @@ for ts, buf in pcap:
         elif dot11.subtype == M_PROBE_RESP:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, type=INFRASTRUCTURE if ibss == 0 else AD_HOC, rates=toRates(dot11.rate.data)))
             addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
+
+            G.add_edge(src, dst)
         elif dot11.subtype == M_PROBE_REQ:
             addClient(src, Client(dot11.ssid.data.decode("utf-8")))
 
-
-for ap in aps.values():
-    print(ap)
-print("-"*50)
-for client in clients.values():
-    print(client)
-
 raw_pcap.close()
+
+nx.draw_shell(G, with_labels=True, font_weight='bold')
+plt.show()
