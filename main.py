@@ -60,9 +60,21 @@ class AP:
         if not self.rates and other.rates:
             self.rates = other.rates
 
-def toRates(raw):
-    # supported, basics
-    return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
+class Client:
+    def __init__(self, probe=""):
+        # might add more attributes later
+        self.probes = [probe if probe else "<wildcard"]
+
+    def __mod__(self, other):
+        if not isinstance(other, Client):
+            raise TypeError(f"{other} is not a Client")
+        if other.probes:
+            probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
+            if not probe in self.probes:
+                self.probes.append(probe)
+
+    def __str__(self):
+        return f"probed = {self.probes}"
 
 
 
@@ -72,6 +84,20 @@ def addAP(mac, ap):
         aps.update({mac: ap})
     else: # if not, updating its attributes
         aps[mac] % ap
+
+clients = {} # mac as key and Client instance as value
+def addClient(mac, client):
+    if not mac in clients: # if first time seeing client
+        clients.update({mac: client})
+    else: # if not, updating its attributes
+        clients[mac] % client
+
+def toRates(raw):
+    # supported, basics
+    return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
+
+
+
 
 
 raw_pcap = open("dump_test.pcap", "rb")
@@ -101,7 +127,17 @@ for ts, buf in pcap:
 
         if dot11.subtype == M_BEACON:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, type=INFRASTRUCTURE if ibss == 0 else AD_HOC, rates=toRates(dot11.rate.data)))
-        if dot11.subtype == M_PROBE_RESP:
+        elif dot11.subtype == M_PROBE_RESP:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, type=INFRASTRUCTURE if ibss == 0 else AD_HOC, rates=toRates(dot11.rate.data)))
+            addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
+        elif dot11.subtype == M_PROBE_REQ:
+            addClient(src, Client(dot11.ssid.data.decode("utf-8")))
+
+
+for ap in aps.values():
+    print(ap)
+print("-"*50)
+for client in clients.values():
+    print(client)
 
 raw_pcap.close()
