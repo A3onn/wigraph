@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
-import dpkt, pprint
+import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
+
+logging.basicConfig(level=logging.DEBUG)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -30,9 +32,6 @@ class AP:
         self.enc = enc
         self.rates = rates
 
-    def __str__(self):
-        return f"bssid = {self.bssid}, ssid = {self.ssid}, channel = {self.ch}, enc = {self.enc}, rates = {self.rates}"
-
     def __mod__(self, other):
         """
         Can now use the % operator to add missing parts of an instance
@@ -46,7 +45,7 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            print(f"{other} is not an AP")
+            logging.error(f"Wrong type, {other} is not an AP")
             return
 
         if not self.bssid and other.bssid:
@@ -72,7 +71,7 @@ class Client:
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            print(f"{other} is not a Client")
+            logging.error(f"Wrong type, {other} is not a Client")
             return
 
         if other.probes:
@@ -82,9 +81,6 @@ class Client:
         if other.rates and not self.rates:
             self.rates = other.rates
 
-    def __str__(self):
-        return f"probed = {self.probes}"
-
 
 # FUNCTIONS
 def toRates(raw):
@@ -93,14 +89,18 @@ def toRates(raw):
 
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
+        logging.debug(f"Adding new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
+        logging.debug(f"Updating AP: {mac}")
         G.nodes[mac]["value"] % ap
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
+        logging.debug(f"Adding new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
+        logging.debug(f"Updating client: {mac}")
         G.nodes[mac]["value"] % client
 
 
@@ -108,7 +108,7 @@ raw_pcap = open("dump_test.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
-    print("Wrong link type")
+    logging.critical("Wrong link type")
     exit(1)
 
 c = 0
@@ -118,10 +118,10 @@ for ts, buf in pcap:
         radio_tap = dpkt.radiotap.Radiotap(buf)
         dot11 = radio_tap.data
     except Exception as e:
-        print(e)
+        logging.error("Exception occurred:", exc_info=True)
 
-    if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the packet is a 802.11 packet
-        print(f"Wrong packet number {c}")
+    if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
+        logging.error(f"#{c} is not an IEEE802.11 frame")
         continue
 
     if dot11.type == MGMT_TYPE: # management frames
@@ -129,25 +129,29 @@ for ts, buf in pcap:
         dst = dot11.mgmt.dst.hex(":")
         bssid  = dot11.mgmt.bssid.hex(":")
 
-
         if dot11.subtype in FRAMES_WITH_CAPABILITY:
             ibss = dot11.capability.ibss
 
         if dot11.subtype == M_BEACON:
+            logging.info(f"Got beacon from {src}")
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
         elif dot11.subtype == M_PROBE_REQ:
+            logging.info(f"Got probe request from {src}")
             addClient(src, Client(probe=dot11.ssid.data.decode("utf-8")))
         elif dot11.subtype == M_PROBE_RESP:
+            logging.info(f"Got probe response from {src}")
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
             addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
 
             G.add_edge(src, dst, type=M_PROBE_RESP, ts=ts)
         elif dot11.subtype == M_ASSOC_REQ:
+            logging.info(f"Got association request from {src}")
             addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8"), bssid=bssid))
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
             G.add_edge(src, dst, type=M_ASSOC_REQ, ts=ts)
         elif dot11.subtype == M_ASSOC_RESP:
+            logging.info(f"Got association response from {src}")
             addAP(src, AP(rates=toRates(dot11.rate.data), bssid=bssid))
             addClient(dst, Client())
             
@@ -155,5 +159,5 @@ for ts, buf in pcap:
 
 raw_pcap.close()
 
-nx.draw_circular(G, with_labels=True, font_weight='bold')
-plt.show()
+#nx.draw_circular(G, with_labels=True, font_weight='bold')
+#plt.show()
