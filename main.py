@@ -25,7 +25,7 @@ CLIENT_T = 1
 class AP:
     def __init__(self, bssid="", ssid="", ch=-1, enc="", rates=[]):
         self.bssid = bssid
-        self.ssid = ssid
+        self.ssid = ssid if ssid else "<none>"
         self.ch = ch
         self.enc = enc
         self.rates = rates
@@ -46,7 +46,8 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            raise TypeError(f"{other} is not an AP")
+            print(f"{other} is not an AP")
+            return
 
         if not self.bssid and other.bssid:
             self.bssid = other.bssid
@@ -67,11 +68,13 @@ class Client:
     def __init__(self, probe="", rates=[]):
         # might add more attributes later
         self.probes = [probe if probe else "<wildcard"]
-        self.rates = []
+        self.rates = rates
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            raise TypeError(f"{other} is not a Client")
+            print(f"{other} is not a Client")
+            return
+
         if other.probes:
             probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
             if not probe in self.probes:
@@ -126,13 +129,14 @@ for ts, buf in pcap:
         dst = dot11.mgmt.dst.hex(":")
         bssid  = dot11.mgmt.bssid.hex(":")
 
+
         if dot11.subtype in FRAMES_WITH_CAPABILITY:
             ibss = dot11.capability.ibss
 
         if dot11.subtype == M_BEACON:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
         elif dot11.subtype == M_PROBE_REQ:
-            addClient(src, Client(dot11.ssid.data.decode("utf-8")))
+            addClient(src, Client(probe=dot11.ssid.data.decode("utf-8")))
         elif dot11.subtype == M_PROBE_RESP:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
             addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
@@ -148,9 +152,6 @@ for ts, buf in pcap:
             addClient(dst, Client())
             
             G.add_edge(src, dst, type=M_ASSOC_RESP, ts=ts)
-        elif dot11.subtype == M_REASSOC_REQ:
-            dbgPrint(dot11)
-
 
 raw_pcap.close()
 
