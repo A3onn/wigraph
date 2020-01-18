@@ -89,7 +89,7 @@ def addAP(mac, ap):
         logging.debug(f"Adding new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T: # check if it's alread marked as a repeater
+        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
             logging.debug(f"Updating client: {mac}")
@@ -103,7 +103,7 @@ def addClient(mac, client):
         logging.debug(f"Adding new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T:
+        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
             logging.debug(f"Updating client: {mac}")
