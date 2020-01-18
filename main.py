@@ -68,9 +68,10 @@ class AP:
             self.rates = other.rates
 
 class Client:
-    def __init__(self, probe=""):
+    def __init__(self, probe="", rates=[]):
         # might add more attributes later
         self.probes = [probe if probe else "<wildcard"]
+        self.rates = []
 
     def __mod__(self, other):
         if not isinstance(other, Client):
@@ -79,6 +80,8 @@ class Client:
             probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
             if not probe in self.probes:
                 self.probes.append(probe)
+        if other.rates and not self.rates:
+            self.rates = other.rates
 
     def __str__(self):
         return f"probed = {self.probes}"
@@ -100,8 +103,6 @@ def addClient(mac, client):
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
         G.nodes[mac]["value"] % client
-
-
 
 
 raw_pcap = open("dump_test.pcap", "rb")
@@ -138,8 +139,13 @@ for ts, buf in pcap:
             G.add_edge(src, dst)
         elif dot11.subtype == M_PROBE_REQ:
             addClient(src, Client(dot11.ssid.data.decode("utf-8")))
+        elif dot11.subtype == M_ASSOC_REQ:
+            addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8"), bssid=bssid))
+            addClient(src, Client(rates=toRates(dot11.rate.data)))
+
+            G.add_edge(src, dst)
 
 raw_pcap.close()
 
-nx.draw_shell(G, with_labels=True, font_weight='bold')
-plt.show()
+#nx.draw_shell(G, with_labels=True, font_weight='bold')
+#plt.show()
