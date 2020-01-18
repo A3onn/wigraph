@@ -23,16 +23,15 @@ CLIENT_T = 1
 
 # CLASSES
 class AP:
-    def __init__(self, bssid="", ssid="", ch=-1, enc="", type="", rates=[]):
+    def __init__(self, bssid="", ssid="", ch=-1, enc="", rates=[]):
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
         self.enc = enc
-        self.type = type
         self.rates = rates
 
     def __str__(self):
-        return f"bssid = {self.bssid}, ssid = {self.ssid}, channel = {self.ch}, enc = {self.enc}, type = {self.type}, rates = {self.rates}"
+        return f"bssid = {self.bssid}, ssid = {self.ssid}, channel = {self.ch}, enc = {self.enc}, rates = {self.rates}"
 
     def __mod__(self, other):
         """
@@ -60,9 +59,6 @@ class AP:
 
         if not self.enc and other.enc:
             self.enc = other.enc
-
-        if not self.type and other.type:
-            self.type = other.type
 
         if not self.rates and other.rates:
             self.rates = other.rates
@@ -131,9 +127,9 @@ for ts, buf in pcap:
             ibss = dot11.capability.ibss
 
         if dot11.subtype == M_BEACON:
-            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, type=INFRASTRUCTURE if ibss == 0 else AD_HOC, rates=toRates(dot11.rate.data)))
+            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
         elif dot11.subtype == M_PROBE_RESP:
-            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, type=INFRASTRUCTURE if ibss == 0 else AD_HOC, rates=toRates(dot11.rate.data)))
+            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
             addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
 
             G.add_edge(src, dst)
@@ -143,6 +139,11 @@ for ts, buf in pcap:
             addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8"), bssid=bssid))
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
+            G.add_edge(src, dst)
+        elif dot11.subtype == M_ASSOC_RESP:
+            addAP(src, AP(rates=toRates(dot11.rate.data), bssid=bssid))
+            addClient(dst, Client())
+            
             G.add_edge(src, dst)
 
 raw_pcap.close()
