@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -25,11 +25,10 @@ CLIENT_T = 1
 
 # CLASSES
 class AP:
-    def __init__(self, bssid="", ssid="", ch=-1, enc="", rates=[]):
+    def __init__(self, bssid="", ssid="", ch=-1, rates=[]):
         self.bssid = bssid
         self.ssid = ssid if ssid else "<none>"
         self.ch = ch
-        self.enc = enc
         self.rates = rates
 
     def __mod__(self, other):
@@ -57,16 +56,13 @@ class AP:
         if self.ch == -1 and other.ch != -1:
             self.ch = other.ch
 
-        if not self.enc and other.enc:
-            self.enc = other.enc
-
         if not self.rates and other.rates:
             self.rates = other.rates
 
 class Client:
     def __init__(self, probe="", rates=[]):
         # might add more attributes later
-        self.probes = [probe if probe else "<wildcard"]
+        self.probes = [probe if probe else "<wildcard>"]
         self.rates = rates
 
     def __mod__(self, other):
@@ -103,8 +99,9 @@ def addClient(mac, client):
         logging.debug(f"Updating client: {mac}")
         G.nodes[mac]["value"] % client
 
+# DEV
 
-raw_pcap = open("dump_test.pcap", "rb")
+raw_pcap = open("home.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -118,7 +115,8 @@ for ts, buf in pcap:
         radio_tap = dpkt.radiotap.Radiotap(buf)
         dot11 = radio_tap.data
     except Exception as e:
-        logging.error("Exception occurred:", exc_info=True)
+        logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
+        continue
 
     if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
         logging.error(f"#{c} is not an IEEE802.11 frame")
@@ -132,30 +130,41 @@ for ts, buf in pcap:
         if dot11.subtype in FRAMES_WITH_CAPABILITY:
             ibss = dot11.capability.ibss
 
-        if dot11.subtype == M_BEACON:
+        if dot11.subtype == M_BEACON: # DONE
             logging.info(f"Got beacon from {src}")
-            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
-        elif dot11.subtype == M_PROBE_REQ:
+            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8", "ignore"), ch=dot11.ds.ch,\
+                rates=toRates(dot11.rate.data)))
+        elif dot11.subtype == M_PROBE_REQ: # DONE
             logging.info(f"Got probe request from {src}")
-            addClient(src, Client(probe=dot11.ssid.data.decode("utf-8")))
-        elif dot11.subtype == M_PROBE_RESP:
+            addClient(src, Client(probe=dot11.ssid.data.decode("utf-8", "ignore"), rates=toRates(dot11.rate.data)))
+        elif dot11.subtype == M_PROBE_RESP: # DONE
             logging.info(f"Got probe response from {src}")
-            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
-            addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
+            addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8", "ignore"), ch=dot11.ds.ch,\
+                    rates=toRates(dot11.rate.data)))
+            addClient(dst, Client(dot11.ssid.data.decode("utf-8", "ignore")))
 
             G.add_edge(src, dst, type=M_PROBE_RESP, ts=ts)
-        elif dot11.subtype == M_ASSOC_REQ:
+        elif dot11.subtype == M_ASSOC_REQ: # DONE
             logging.info(f"Got association request from {src}")
-            addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8"), bssid=bssid))
+            addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8", "ignore"), bssid=bssid))
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
             G.add_edge(src, dst, type=M_ASSOC_REQ, ts=ts)
-        elif dot11.subtype == M_ASSOC_RESP:
+        elif dot11.subtype == M_ASSOC_RESP: # DONE
             logging.info(f"Got association response from {src}")
             addAP(src, AP(rates=toRates(dot11.rate.data), bssid=bssid))
             addClient(dst, Client())
             
             G.add_edge(src, dst, type=M_ASSOC_RESP, ts=ts)
+        elif dot11.subtype == M_REASSOC_REQ: # DONE
+            logging.info(f"Got reassociation request from {src}")
+            current_ap = dot11.reassoc_req.current_ap.hex(":")
+            if current_ap != bssid: # meaning the client wants to reconnect
+                addAP(dst, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8", "ignore")))
+            addClient(src, Client(rates=toRates(dot11.rate.data)))
+
+            G.add_edge(src, dst, type=M_REASSOC_REQ, ts=ts)
+
 
 raw_pcap.close()
 
