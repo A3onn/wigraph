@@ -13,7 +13,7 @@ def dbgPrint(p):
 #----------------------------
 
 # CONSTANTS
-G=nx.Graph()
+G = nx.MultiDiGraph()
 
 INFRASTRUCTURE = "Infrastructure"
 AD_HOC = "AD-HOC"
@@ -111,8 +111,11 @@ if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
 c = 0
 for ts, buf in pcap:
     c += 1
-    radio_tap = dpkt.radiotap.Radiotap(buf)
-    dot11 = radio_tap.data
+    try:
+        radio_tap = dpkt.radiotap.Radiotap(buf)
+        dot11 = radio_tap.data
+    except Exception as e:
+        print(e)
 
     if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the packet is a 802.11 packet
         print(f"Wrong packet number {c}")
@@ -128,25 +131,28 @@ for ts, buf in pcap:
 
         if dot11.subtype == M_BEACON:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
+        elif dot11.subtype == M_PROBE_REQ:
+            addClient(src, Client(dot11.ssid.data.decode("utf-8")))
         elif dot11.subtype == M_PROBE_RESP:
             addAP(src, AP(bssid=bssid, ssid=dot11.ssid.data.decode("utf-8"), ch=dot11.ds.ch, rates=toRates(dot11.rate.data)))
             addClient(dst, Client(dot11.ssid.data.decode("utf-8")))
 
-            G.add_edge(src, dst)
-        elif dot11.subtype == M_PROBE_REQ:
-            addClient(src, Client(dot11.ssid.data.decode("utf-8")))
+            G.add_edge(src, dst, type=M_PROBE_RESP, ts=ts)
         elif dot11.subtype == M_ASSOC_REQ:
             addAP(dst, AP(ssid=dot11.ssid.data.decode("utf-8"), bssid=bssid))
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
-            G.add_edge(src, dst)
+            G.add_edge(src, dst, type=M_ASSOC_REQ, ts=ts)
         elif dot11.subtype == M_ASSOC_RESP:
             addAP(src, AP(rates=toRates(dot11.rate.data), bssid=bssid))
             addClient(dst, Client())
             
-            G.add_edge(src, dst)
+            G.add_edge(src, dst, type=M_ASSOC_RESP, ts=ts)
+        elif dot11.subtype == M_REASSOC_REQ:
+            dbgPrint(dot11)
+
 
 raw_pcap.close()
 
-#nx.draw_shell(G, with_labels=True, font_weight='bold')
-#plt.show()
+nx.draw_circular(G, with_labels=True, font_weight='bold')
+plt.show()
