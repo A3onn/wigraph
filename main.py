@@ -101,7 +101,7 @@ def addClient(mac, client):
 
 # DEV
 
-raw_pcap = open("home.pcap", "rb")
+raw_pcap = open("cafe.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -164,9 +164,15 @@ for ts, buf in pcap:
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
             G.add_edge(src, dst, type=M_REASSOC_REQ, ts=ts)
+        elif dot11.subtype == M_REASSOC_REQ: # DONE
+            logging.info(f"Got reassociation response from {src}")
+            addAP(src, AP(bssid=bssid, rates=toRates(dot11.rate.data), ssid=dot11.ssid.data.decode("utf-8", "ignore")))
+            addClient(dst, Client())
+
+            G.add_edge(src, dst, type=M_REASSOC_RESP, ts=ts)
 
 
 raw_pcap.close()
 
-#nx.draw_circular(G, with_labels=True, font_weight='bold')
-#plt.show()
+nx.draw_circular(G, with_labels=True, font_weight='bold')
+plt.show()
