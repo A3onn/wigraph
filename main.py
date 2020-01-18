@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -22,6 +22,7 @@ AD_HOC = "AD-HOC"
 
 AP_T = 0
 CLIENT_T = 1
+REPEATER_T = 2
 
 # CLASSES
 class AP:
@@ -45,7 +46,7 @@ class AP:
 
         if not isinstance(other, AP):
             logging.error(f"Wrong type, {other} is not an AP")
-            return
+            raise TypeError()
 
         if not self.bssid and other.bssid:
             self.bssid = other.bssid
@@ -68,7 +69,7 @@ class Client:
     def __mod__(self, other):
         if not isinstance(other, Client):
             logging.error(f"Wrong type, {other} is not a Client")
-            return
+            raise TypeError()
 
         if other.probes:
             probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
@@ -88,20 +89,32 @@ def addAP(mac, ap):
         logging.debug(f"Adding new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
-        logging.debug(f"Updating AP: {mac}")
-        G.nodes[mac]["value"] % ap
+        if G.nodes[mac]["type"] == REPEATER_T: # check if it's alread marked as a repeater
+            return
+        try:
+            logging.debug(f"Updating client: {mac}")
+            G.nodes[mac]["value"] % ap
+        except TypeError:
+            G.nodes[mac]["type"] = REPEATER_T
+            logging.info(f"Put {mac} as a repeater")
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
         logging.debug(f"Adding new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
-        logging.debug(f"Updating client: {mac}")
-        G.nodes[mac]["value"] % client
+        if G.nodes[mac]["type"] == REPEATER_T:
+            return
+        try:
+            logging.debug(f"Updating client: {mac}")
+            G.nodes[mac]["value"] % client
+        except TypeError:
+            G.nodes[mac]["type"] = REPEATER_T
+            logging.info(f"Put {mac} as a repeater")
 
 # DEV
 
-raw_pcap = open("cafe.pcap", "rb")
+raw_pcap = open("home.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -174,5 +187,5 @@ for ts, buf in pcap:
 
 raw_pcap.close()
 
-nx.draw_circular(G, with_labels=True, font_weight='bold')
-plt.show()
+#nx.draw_circular(G, with_labels=True, font_weight='bold')
+#plt.show()
