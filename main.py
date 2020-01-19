@@ -212,7 +212,23 @@ def processManagementFrame(frame):
         elif who == UNKNOWN_T:
             logging.info(f"Got deauthentification frame from {src} (UNKNOWN)")
             pass
-
+    elif frame.subtype == M_DISASSOC:
+        who = whatIs(src)
+        if who == AP_T:
+            logging.info(f"Got disassociation frame from {src} (AP)")
+            addAP(src, AP(bssid=bssid))
+            addClient(dst, Client())
+            
+            G.add_edge(src, dst, type=DISASSOC_FROM_AP, ts=ts)
+        elif who == CLIENT_T:
+            logging.info(f"Got disassociation frame from {src} (CLIENT)")
+            addAP(dst, AP(bssid=bssid))
+            addClient(src, Client())
+            
+            G.add_edge(src, dst, type=DISASSOC_FROM_CLIENT, ts=ts)
+        elif who == UNKNOWN_T:
+            logging.info(f"Got disassociation frame from {src} (UNKNOWN)")
+            pass
 
 # DEV
 raw_pcap = open("cafe.pcap", "rb")
@@ -243,8 +259,8 @@ raw_pcap.close()
 
 logging.info("Creating layout")
 position = nx.random_layout(G)
-logging.info("Finished layout, placing nodes")
 
+logging.info("Finished layout, placing nodes")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == AP_T], node_color="red")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == CLIENT_T], node_color="blue")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == REPEATER_T], node_color="green")
@@ -259,6 +275,8 @@ nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edge
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_RESP], edge_color="pink")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_AP], edge_color="grey")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_CLIENT], edge_color="black")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_AP], edge_color="#bb0000")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_CLIENT], edge_color="#ff0000")
 
 logging.info("Showing graph")
 plt.show()
