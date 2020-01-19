@@ -38,7 +38,8 @@ DEAUTH_FROM_AP = 7
 DEAUTH_FROM_CLIENT = 8
 DISASSOC_FROM_AP = 9
 DISASSOC_FROM_CLIENT = 10
-
+ACTION_FROM_AP = 11
+ACTION_FROM_CLIENT = 12
 
 # CLASSES
 class AP:
@@ -229,6 +230,24 @@ def processManagementFrame(frame):
         elif who == UNKNOWN_T:
             logging.info(f"Got disassociation frame from {src} (UNKNOWN)")
             pass
+    elif frame.subtype == M_ACTION:
+        who = whatIs(src)
+        if who == AP_T:
+            logging.info(f"Got action frame from {src} (AP)")
+            addAP(src, AP(bssid=bssid))
+            addClient(dst, Client())
+            
+            G.add_edge(src, dst, type=ACTION_FROM_AP, ts=ts)
+        elif who == CLIENT_T:
+            logging.info(f"Got action frame from {src} (CLIENT)")
+            addAP(dst, AP(bssid=bssid))
+            addClient(src, Client())
+            
+            G.add_edge(src, dst, type=ACTION_FROM_CLIENT, ts=ts)
+        elif who == UNKNOWN_T:
+            logging.info(f"Got action frame from {src} (UNKNOWN)")
+            pass
+        
 
 # DEV
 raw_pcap = open("cafe.pcap", "rb")
@@ -264,7 +283,6 @@ logging.info("Finished layout, placing nodes")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == AP_T], node_color="red")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == CLIENT_T], node_color="blue")
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == REPEATER_T], node_color="green")
-
 logging.info("Placing edges")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == PROBE_RESP], edge_color="#eeeeee")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_REQ], edge_color="orange")
@@ -277,6 +295,8 @@ nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edge
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_CLIENT], edge_color="black")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_AP], edge_color="#bb0000")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_CLIENT], edge_color="#ff0000")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ACTION_FROM_AP], edge_color="#008718")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ACTION_FROM_CLIENT], edge_color="#00FF2E")
 
 logging.info("Showing graph")
 plt.show()
