@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -16,6 +16,7 @@ def dbgPrint(p):
 
 # CONSTANTS
 G = nx.MultiDiGraph()
+
 
 INFRASTRUCTURE = "Infrastructure"
 AD_HOC = "AD-HOC"
@@ -105,7 +106,7 @@ def addAP(mac, ap):
             logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % ap
         except TypeError:
-            G.nodes[mac]["type"] = REPEATER_T
+            nx.set_node_attributes(G, {mac:{'type':REPEATER_T}})
             logging.info(f"Put {mac} as a repeater")
 
 def addClient(mac, client):
@@ -119,7 +120,7 @@ def addClient(mac, client):
             logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % client
         except TypeError:
-            G.nodes[mac]["type"] = REPEATER_T
+            nx.set_node_attributes(G, {mac:{'type':REPEATER_T}})
             logging.info(f"Put {mac} as a repeater")
 
 def processManagementFrame(frame):
@@ -172,18 +173,20 @@ def processManagementFrame(frame):
         G.add_edge(src, dst, type=REASSOC_RESP, ts=ts)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
+            logging.info(f"Got Auth request from {src}")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
 
             G.add_edge(src, dst, type=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
+            logging.info(f"Got Auth response from {src}")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
 
             G.add_edge(src, dst, type=AUTH_RESP)
 
 # DEV
-raw_pcap = open("dump_test.pcap", "rb")
+raw_pcap = open("home.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -209,5 +212,20 @@ for ts, buf in pcap:
 
 raw_pcap.close()
 
-#nx.draw_circular(G, with_labels=True, font_weight='bold')
-#plt.show()
+logging.info("Creating layout")
+position = nx.random_layout(G)
+logging.info("Finished layout, placing nodes")
+
+nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == AP_T], node_color="red")
+nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == CLIENT_T], node_color="blue")
+nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == REPEATER_T], node_color="green")
+
+logging.info("Placing edges")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == PROBE_RESP], edge_color="grey")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_REQ], edge_color="orange")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_RESP], edge_color="yellow")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_REQ], edge_color="blue")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_RESP], edge_color="cyan")
+
+logging.info("Showing graph")
+plt.show()
