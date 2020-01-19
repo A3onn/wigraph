@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.CRITICAL)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -17,15 +17,16 @@ def dbgPrint(p):
 # CONSTANTS
 G = nx.MultiDiGraph()
 
-
 INFRASTRUCTURE = "Infrastructure"
 AD_HOC = "AD-HOC"
 
+# type of node
 AP_T = 0
 CLIENT_T = 1
 REPEATER_T = 2
+UNKNOWN_T = 3
 
-
+# type of edge
 ASSOC_REQ = 0
 ASSOC_RESP = 1
 AUTH_REQ = 2
@@ -33,6 +34,10 @@ AUTH_RESP = 3
 REASSOC_REQ = 4
 REASSOC_RESP = 5
 PROBE_RESP = 6
+DEAUTH_FROM_AP = 7
+DEAUTH_FROM_CLIENT = 8
+DISASSOC_FROM_AP = 9
+DISASSOC_FROM_CLIENT = 10
 
 
 # CLASSES
@@ -94,6 +99,11 @@ class Client:
 def toRates(raw):
     # supported, basics
     return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
+
+def whatIs(mac):
+    if mac in G.nodes:
+        return G.nodes[mac]["type"]
+    return UNKNOWN_T
 
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
@@ -173,20 +183,39 @@ def processManagementFrame(frame):
         G.add_edge(src, dst, type=REASSOC_RESP, ts=ts)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
-            logging.info(f"Got Auth request from {src}")
+            logging.info(f"Got authentification request from {src}")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
 
             G.add_edge(src, dst, type=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
-            logging.info(f"Got Auth response from {src}")
+            logging.info(f"Got authentification response from {src}")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
 
             G.add_edge(src, dst, type=AUTH_RESP)
 
+    elif frame.subtype == M_DEAUTH:
+        who = whatIs(src)
+        if who == AP_T:
+            logging.info(f"Got deauthentification frame from {src} (AP)")
+            addAP(src, AP(bssid=bssid))
+            addClient(dst, Client())
+            
+            G.add_edge(src, dst, type=DEAUTH_FROM_AP, ts=ts)
+        elif who == CLIENT_T:
+            logging.info(f"Got deauthentification frame from {src} (CLIENT)")
+            addAP(dst, AP(bssid=bssid))
+            addClient(src, Client())
+            
+            G.add_edge(src, dst, type=DEAUTH_FROM_CLIENT, ts=ts)
+        elif who == UNKNOWN_T:
+            logging.info(f"Got deauthentification frame from {src} (UNKNOWN)")
+            pass
+
+
 # DEV
-raw_pcap = open("home.pcap", "rb")
+raw_pcap = open("cafe.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -221,13 +250,15 @@ nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes
 nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == REPEATER_T], node_color="green")
 
 logging.info("Placing edges")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == PROBE_RESP], edge_color="grey")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == PROBE_RESP], edge_color="#eeeeee")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_REQ], edge_color="orange")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_RESP], edge_color="yellow")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_REQ], edge_color="blue")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_RESP], edge_color="cyan")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_REQ], edge_color="violet")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_RESP], edge_color="pink")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_AP], edge_color="grey")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_CLIENT], edge_color="black")
 
 logging.info("Showing graph")
 plt.show()
