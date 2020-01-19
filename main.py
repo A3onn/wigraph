@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -45,7 +45,7 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            logging.error(f"Wrong type, {other} is not an AP")
+            logging.warning(f"Wrong type, {other} is not an AP")
             raise TypeError()
 
         if not self.bssid and other.bssid:
@@ -68,7 +68,7 @@ class Client:
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            logging.error(f"Wrong type, {other} is not a Client")
+            logging.warning(f"Wrong type, {other} is not a Client")
             raise TypeError()
 
         if other.probes:
@@ -114,7 +114,7 @@ def addClient(mac, client):
 
 # DEV
 
-raw_pcap = open("home.pcap", "rb")
+raw_pcap = open("dump_test.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -132,7 +132,7 @@ for ts, buf in pcap:
         continue
 
     if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
-        logging.error(f"#{c} is not an IEEE802.11 frame")
+        logging.error(f"#{c} frame is not an IEEE802.11 frame")
         continue
 
     if dot11.type == MGMT_TYPE: # management frames
@@ -177,7 +177,7 @@ for ts, buf in pcap:
             addClient(src, Client(rates=toRates(dot11.rate.data)))
 
             G.add_edge(src, dst, type=M_REASSOC_REQ, ts=ts)
-        elif dot11.subtype == M_REASSOC_REQ: # DONE
+        elif dot11.subtype == M_REASSOC_RESP: # DONE
             logging.info(f"Got reassociation response from {src}")
             addAP(src, AP(bssid=bssid, rates=toRates(dot11.rate.data), ssid=dot11.ssid.data.decode("utf-8", "ignore")))
             addClient(dst, Client())
