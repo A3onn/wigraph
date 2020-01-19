@@ -5,7 +5,7 @@ import dpkt, pprint, logging
 import networkx as nx
 import matplotlib.pyplot as plt
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -23,6 +23,16 @@ AD_HOC = "AD-HOC"
 AP_T = 0
 CLIENT_T = 1
 REPEATER_T = 2
+
+
+ASSOC_REQ = 0
+ASSOC_RESP = 1
+AUTH_REQ = 2
+AUTH_RESP = 3
+REASSOC_REQ = 4
+REASSOC_RESP = 5
+PROBE_RESP = 6
+
 
 # CLASSES
 class AP:
@@ -133,19 +143,19 @@ def processManagementFrame(frame):
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
-        G.add_edge(src, dst, type=M_PROBE_RESP, ts=ts)
+        G.add_edge(src, dst, type=PROBE_RESP, ts=ts)
     elif frame.subtype == M_ASSOC_REQ: # DONE
         logging.info(f"Got association request from {src}")
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid))
         addClient(src, Client(rates=toRates(frame.rate.data)))
 
-        G.add_edge(src, dst, type=M_ASSOC_REQ, ts=ts)
+        G.add_edge(src, dst, type=ASSOC_REQ, ts=ts)
     elif frame.subtype == M_ASSOC_RESP: # DONE
         logging.info(f"Got association response from {src}")
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
-        G.add_edge(src, dst, type=M_ASSOC_RESP, ts=ts)
+        G.add_edge(src, dst, type=ASSOC_RESP, ts=ts)
     elif frame.subtype == M_REASSOC_REQ: # DONE
         logging.info(f"Got reassociation request from {src}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
@@ -153,14 +163,24 @@ def processManagementFrame(frame):
             addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(src, Client(rates=toRates(frame.rate.data)))
 
-        G.add_edge(src, dst, type=M_REASSOC_REQ, ts=ts)
+        G.add_edge(src, dst, type=REASSOC_REQ, ts=ts)
     elif frame.subtype == M_REASSOC_RESP: # DONE
         logging.info(f"Got reassociation response from {src}")
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data), ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(dst, Client())
 
-        G.add_edge(src, dst, type=M_REASSOC_RESP, ts=ts)
+        G.add_edge(src, dst, type=REASSOC_RESP, ts=ts)
+    elif frame.subtype == M_AUTH:
+        if frame.auth.auth_seq == 256: # CLIENT -> AP
+            addAP(dst, AP(bssid=bssid))
+            addClient(src, Client())
 
+            G.add_edge(src, dst, type=AUTH_REQ)
+        elif frame.auth.auth_seq == 512: # AP -> CLIENT
+            addAP(src, AP(bssid=bssid))
+            addClient(dst, Client())
+
+            G.add_edge(src, dst, type=AUTH_RESP)
 
 # DEV
 raw_pcap = open("dump_test.pcap", "rb")
