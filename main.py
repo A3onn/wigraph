@@ -226,6 +226,8 @@ nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edge
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_RESP], edge_color="yellow")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_REQ], edge_color="blue")
 nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_RESP], edge_color="cyan")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_REQ], edge_color="violet")
+nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_RESP], edge_color="pink")
 
 logging.info("Showing graph")
 plt.show()
