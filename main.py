@@ -3,7 +3,6 @@
 from dpkt.ieee80211 import *
 import dpkt, pprint, logging
 import networkx as nx
-import matplotlib.pyplot as plt
 
 logging.basicConfig(level=logging.CRITICAL)
 
@@ -26,20 +25,26 @@ CLIENT_T = 1
 REPEATER_T = 2
 UNKNOWN_T = 3
 
-# type of edge
-ASSOC_REQ = 0
-ASSOC_RESP = 1
-AUTH_REQ = 2
-AUTH_RESP = 3
-REASSOC_REQ = 4
-REASSOC_RESP = 5
-PROBE_RESP = 6
-DEAUTH_FROM_AP = 7
-DEAUTH_FROM_CLIENT = 8
-DISASSOC_FROM_AP = 9
-DISASSOC_FROM_CLIENT = 10
-ACTION_FROM_AP = 11
-ACTION_FROM_CLIENT = 12
+# COLORS
+# nodes
+AP_C = "#ff0000"
+CLIENT_C = "#0000ff"
+REPEATER_C = "#00ff00"
+
+# edges
+ASSOC_REQ = "yellow3"
+ASSOC_RESP = "yellow"
+AUTH_REQ = "violetred"
+AUTH_RESP = "violet"
+REASSOC_REQ = "blue3"
+REASSOC_RESP = "blue"
+PROBE_RESP = "crimson"
+DEAUTH_FROM_AP = "grey"
+DEAUTH_FROM_CLIENT = "black"
+DISASSOC_FROM_CLIENT = "darkseagreen"
+DISASSOC_FROM_AP = "darkseagreen1"
+ACTION_FROM_AP = "gold"
+ACTION_FROM_CLIENT = "gold2"
 
 # CLASSES
 class AP:
@@ -106,6 +111,11 @@ def whatIs(mac):
         return G.nodes[mac]["type"]
     return UNKNOWN_T
 
+def addEdge(src, dst, color):
+    if not G.has_edge(src, dst):
+        logging.debug(f"Adding new edge between {src} and {dst}")
+        G.add_edge(src, dst, color=color)
+
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
         logging.debug(f"Adding new AP: {mac}")
@@ -155,19 +165,19 @@ def processManagementFrame(frame):
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
-        G.add_edge(src, dst, type=PROBE_RESP, ts=ts)
+        addEdge(src, dst, color=PROBE_RESP)
     elif frame.subtype == M_ASSOC_REQ: # DONE
         logging.info(f"Got association request from {src}")
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid))
         addClient(src, Client(rates=toRates(frame.rate.data)))
 
-        G.add_edge(src, dst, type=ASSOC_REQ, ts=ts)
+        addEdge(src, dst, color=ASSOC_REQ)
     elif frame.subtype == M_ASSOC_RESP: # DONE
         logging.info(f"Got association response from {src}")
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
-        G.add_edge(src, dst, type=ASSOC_RESP, ts=ts)
+        addEdge(src, dst, color=ASSOC_RESP)
     elif frame.subtype == M_REASSOC_REQ: # DONE
         logging.info(f"Got reassociation request from {src}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
@@ -175,26 +185,26 @@ def processManagementFrame(frame):
             addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(src, Client(rates=toRates(frame.rate.data)))
 
-        G.add_edge(src, dst, type=REASSOC_REQ, ts=ts)
+        addEdge(src, dst, color=REASSOC_REQ)
     elif frame.subtype == M_REASSOC_RESP: # DONE
         logging.info(f"Got reassociation response from {src}")
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data), ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(dst, Client())
 
-        G.add_edge(src, dst, type=REASSOC_RESP, ts=ts)
+        addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
             logging.info(f"Got authentification request from {src}")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
 
-            G.add_edge(src, dst, type=AUTH_REQ)
+            addEdge(src, dst, color=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
             logging.info(f"Got authentification response from {src}")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
 
-            G.add_edge(src, dst, type=AUTH_RESP)
+            addEdge(src, dst, color=AUTH_RESP)
 
     elif frame.subtype == M_DEAUTH:
         who = whatIs(src)
@@ -203,16 +213,15 @@ def processManagementFrame(frame):
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
-            G.add_edge(src, dst, type=DEAUTH_FROM_AP, ts=ts)
+            addEdge(src, dst, color=DEAUTH_FROM_AP)
         elif who == CLIENT_T:
             logging.info(f"Got deauthentification frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
-            G.add_edge(src, dst, type=DEAUTH_FROM_CLIENT, ts=ts)
+            addEdge(src, dst, color=DEAUTH_FROM_CLIENT)
         elif who == UNKNOWN_T:
             logging.info(f"Got deauthentification frame from {src} (UNKNOWN)")
-            pass
     elif frame.subtype == M_DISASSOC:
         who = whatIs(src)
         if who == AP_T:
@@ -220,16 +229,15 @@ def processManagementFrame(frame):
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
-            G.add_edge(src, dst, type=DISASSOC_FROM_AP, ts=ts)
+            addEdge(src, dst, color=DISASSOC_FROM_AP)
         elif who == CLIENT_T:
             logging.info(f"Got disassociation frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
-            G.add_edge(src, dst, type=DISASSOC_FROM_CLIENT, ts=ts)
+            addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
         elif who == UNKNOWN_T:
             logging.info(f"Got disassociation frame from {src} (UNKNOWN)")
-            pass
     elif frame.subtype == M_ACTION:
         who = whatIs(src)
         if who == AP_T:
@@ -237,20 +245,19 @@ def processManagementFrame(frame):
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
-            G.add_edge(src, dst, type=ACTION_FROM_AP, ts=ts)
+            addEdge(src, dst, color=ACTION_FROM_AP)
         elif who == CLIENT_T:
             logging.info(f"Got action frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
-            G.add_edge(src, dst, type=ACTION_FROM_CLIENT, ts=ts)
+            addEdge(src, dst, color=ACTION_FROM_CLIENT)
         elif who == UNKNOWN_T:
             logging.info(f"Got action frame from {src} (UNKNOWN)")
-            pass
         
 
 # DEV
-raw_pcap = open("cafe.pcap", "rb")
+raw_pcap = open("dump_test.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -276,27 +283,5 @@ for ts, buf in pcap:
 
 raw_pcap.close()
 
-logging.info("Creating layout")
-position = nx.random_layout(G)
-
-logging.info("Finished layout, placing nodes")
-nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == AP_T], node_color="red")
-nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == CLIENT_T], node_color="blue")
-nx.draw_networkx_nodes(G,position, nodelist=[node for node in G.nodes if G.nodes[node]["type"] == REPEATER_T], node_color="green")
-logging.info("Placing edges")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == PROBE_RESP], edge_color="#eeeeee")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_REQ], edge_color="orange")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ASSOC_RESP], edge_color="yellow")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_REQ], edge_color="blue")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == REASSOC_RESP], edge_color="cyan")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_REQ], edge_color="violet")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == AUTH_RESP], edge_color="pink")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_AP], edge_color="grey")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DEAUTH_FROM_CLIENT], edge_color="black")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_AP], edge_color="#bb0000")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == DISASSOC_FROM_CLIENT], edge_color="#ff0000")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ACTION_FROM_AP], edge_color="#008718")
-nx.draw_networkx_edges(G, position, edgelist=[edge for edge in G.edges if G.edges[edge]["type"] == ACTION_FROM_CLIENT], edge_color="#00FF2E")
-
-logging.info("Showing graph")
-plt.show()
+logging.info("Generating dot file")
+nx.nx_agraph.write_dot(G, 'test.dot')
