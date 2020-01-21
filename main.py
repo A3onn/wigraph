@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
-from sys import exit
 import dpkt, pprint, logging, argparse, subprocess
 import networkx as nx
 
@@ -14,6 +13,11 @@ def dbgPrint(p):
 
 # CONSTANTS
 G = nx.MultiDiGraph()
+
+# colors
+ACTION = "\033[92m[o]\033[0m"
+INFO = "\033[93m[i]\033[0m"
+FAIL = "\033[91m[X]\033[0m"
 
 # types of node
 AP_T = 0
@@ -267,6 +271,7 @@ def processManagementFrame(frame):
             logging.debug(f"Got action frame from {src} (UNKNOWN)")
 
 def parseWithRadio(pcap):
+    c = 0
     for ts, buf in pcap:
         try:
             radio_tap = dpkt.radiotap.Radiotap(buf)
@@ -281,8 +286,11 @@ def parseWithRadio(pcap):
 
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11)
+            c += 1
+    return c
 
 def parseWithoutRadio(pcap):
+    c = 0
     for ts, buf in pcap:
         try:
             dot11 = dpkt.ieee80211.IEEE80211(buf)
@@ -292,13 +300,15 @@ def parseWithoutRadio(pcap):
 
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11)
+            c += 1
+    return c
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
-    parser.add_argument("pcap", help="pcap to parse")
-    parser.add_argument("output_name", help="name without extension of the output file")
-    parser.add_argument("--type", "-t", help="output file's type", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("--pcap", "-p", help="pcap to parse", required=True)
+    parser.add_argument("--output", "-o", help="name without extension of the output file", required=True)
+    parser.add_argument("--format", "-f", help="output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     parser.add_argument("-v", "--verbose", help="Display more info when parsing", action="count")
     args = parser.parse_args()
@@ -306,13 +316,15 @@ if __name__ == "__main__":
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
-        exit(f"No file found: {args.pcap}")
+        print(f"{FAIL} No file found: {args.pcap}")
+        exit(1)
     
     try:
         pcap = dpkt.pcap.Reader(raw_pcap)
     except:
         raw_pcap.close()
-        exit(f"An error occured while reading {args.pcap}")
+        print(f"{FAIL} An error occured while reading {args.pcap}")
+        exit(1)
 
     if args.verbose == 2:
         logging.basicConfig(level=logging.DEBUG)
@@ -320,24 +332,34 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO)
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
-        parseWithRadio(pcap)
+        print(f"{ACTION} Begining of parsing!")
+        count = parseWithRadio(pcap)
+        print(f"{ACTION} Parsed {count} frames")
     elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
-        parseWithoutRadio(pcap)
+        print(f"{ACTION} Begining of parsing!")
+        count = parseWithoutRadio(pcap)
+        print(f"{ACTION} Parsed {count} frames")
     else:
         raw_pcap.close()
-        exit("Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
+        print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
+        exit(1)
 
     raw_pcap.close()
 
+    print(f"{ACTION} Generating {args.output}.dot file")
     generateNodesColors()
-    nx.nx_agraph.write_dot(G, args.output_name + ".dot")
+    nx.nx_agraph.write_dot(G, args.output + ".dot")
+    print(f"{ACTION} {args.output}.dot generated!")
 
-    if args.type != "dot":
+    if args.format != "dot":
         try:
-            r = subprocess.call([args.graph, args.output_name + ".dot", "-T", args.type, "-o", args.output_name + "." + args.type], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"{ACTION} Generating {args.output}.{args.format}")
+            r = subprocess.call([args.graph, args.output + ".dot", "-T", args.format, "-o", args.output + "." + args.format], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if r != 0:
-                exit(f"An error occured while generating the image! Left {args.output_name}.dot intact.")
+                print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
+                exit(1)
             else:
-                print("Image generated!")
+                print(f"{ACTION} {args.output}.{args.format} generated!")
         except FileNotFoundError:
-            exit("Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+            print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+            exit(1)
