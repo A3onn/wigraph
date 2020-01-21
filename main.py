@@ -4,7 +4,7 @@ from dpkt.ieee80211 import *
 import dpkt, pprint, logging
 import networkx as nx
 
-logging.basicConfig(level=logging.CRITICAL)
+logging.basicConfig(level=logging.INFO)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -32,19 +32,19 @@ CLIENT_C = "#0000ff"
 REPEATER_C = "#00ff00"
 
 # edges
-ASSOC_REQ = "yellow3"
-ASSOC_RESP = "yellow"
-AUTH_REQ = "violetred"
-AUTH_RESP = "violet"
-REASSOC_REQ = "blue3"
-REASSOC_RESP = "blue"
-PROBE_RESP = "crimson"
-DEAUTH_FROM_AP = "grey"
-DEAUTH_FROM_CLIENT = "black"
-DISASSOC_FROM_CLIENT = "darkseagreen"
-DISASSOC_FROM_AP = "darkseagreen1"
-ACTION_FROM_AP = "gold"
-ACTION_FROM_CLIENT = "gold2"
+ASSOC_REQ = "#0000FF" # blue
+ASSOC_RESP = "#0000AA"
+AUTH_REQ = "#FF8C00" # dark orange
+AUTH_RESP = "#AA4700"
+REASSOC_REQ = "#FF69B4" # hot pink
+REASSOC_RESP = "#AA2560"
+PROBE_RESP = "#123456"
+DEAUTH_FROM_AP = "#800000" # maroon
+DEAUTH_FROM_CLIENT = "#400000"
+DISASSOC_FROM_CLIENT = "#32CD32" # lime green
+DISASSOC_FROM_AP = "#007800"
+ACTION_FROM_AP = "#556B2F" # dark olive green
+ACTION_FROM_CLIENT = "#11460A"
 
 # CLASSES
 class AP:
@@ -53,6 +53,11 @@ class AP:
         self.ssid = ssid if ssid else "<none>"
         self.ch = ch
         self.rates = rates
+
+    def __str__(self):
+        supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
+        basic_rates = ",".join(map(str, self.rates[1])) # same here
+        return f"bssid: {self.bssid}\nssid: {self.ssid}\nchannel: {self.ch}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}"
 
     def __mod__(self, other):
         """
@@ -83,10 +88,13 @@ class AP:
             self.rates = other.rates
 
 class Client:
-    def __init__(self, probe="", rates=[]):
+    def __init__(self, probe=""):
         # might add more attributes later
         self.probes = [probe if probe else "<wildcard>"]
-        self.rates = rates
+
+    def __str__(self):
+        probed = ",".join(self.probes)
+        return f"probed: {probed}"
 
     def __mod__(self, other):
         if not isinstance(other, Client):
@@ -97,14 +105,21 @@ class Client:
             probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
             if not probe in self.probes:
                 self.probes.append(probe)
-        if other.rates and not self.rates:
-            self.rates = other.rates
-
 
 # FUNCTIONS
 def toRates(raw):
     # supported, basics
     return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
+
+def generateNodesColors():
+    # this is used to avoid generating the label of each node each time there is a modification
+    for mac in G.nodes:
+        if G.nodes[mac]["type"] == AP_T:
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "color": AP_C}})
+        elif G.nodes[mac]["type"] == CLIENT_T:
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "color": CLIENT_C}})
+        elif G.nodes[mac]["type"] == REPEATER_T:
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + "Repeater", "color": REPEATER_C}})
 
 def whatIs(mac):
     if mac in G.nodes:
@@ -127,7 +142,7 @@ def addAP(mac, ap):
             logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % ap
         except TypeError:
-            nx.set_node_attributes(G, {mac:{'type':REPEATER_T}})
+            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
             logging.info(f"Put {mac} as a repeater")
 
 def addClient(mac, client):
@@ -141,7 +156,7 @@ def addClient(mac, client):
             logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % client
         except TypeError:
-            nx.set_node_attributes(G, {mac:{'type':REPEATER_T}})
+            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
             logging.info(f"Put {mac} as a repeater")
 
 def processManagementFrame(frame):
@@ -152,41 +167,41 @@ def processManagementFrame(frame):
     if frame.subtype in FRAMES_WITH_CAPABILITY:
         ibss = frame.capability.ibss
 
-    if frame.subtype == M_BEACON: # DONE
+    if frame.subtype == M_BEACON:
         logging.info(f"Got beacon from {src}")
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
-    elif frame.subtype == M_PROBE_REQ: # DONE
+    elif frame.subtype == M_PROBE_REQ:
         logging.info(f"Got probe request from {src}")
-        addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore"), rates=toRates(frame.rate.data)))
-    elif frame.subtype == M_PROBE_RESP: # DONE
+        addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
+    elif frame.subtype == M_PROBE_RESP:
         logging.info(f"Got probe response from {src}")
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
         addEdge(src, dst, color=PROBE_RESP)
-    elif frame.subtype == M_ASSOC_REQ: # DONE
+    elif frame.subtype == M_ASSOC_REQ:
         logging.info(f"Got association request from {src}")
-        addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid))
-        addClient(src, Client(rates=toRates(frame.rate.data)))
+        addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
+        addClient(src, Client())
 
         addEdge(src, dst, color=ASSOC_REQ)
-    elif frame.subtype == M_ASSOC_RESP: # DONE
+    elif frame.subtype == M_ASSOC_RESP:
         logging.info(f"Got association response from {src}")
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
         addEdge(src, dst, color=ASSOC_RESP)
-    elif frame.subtype == M_REASSOC_REQ: # DONE
+    elif frame.subtype == M_REASSOC_REQ:
         logging.info(f"Got reassociation request from {src}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
-            addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore")))
-        addClient(src, Client(rates=toRates(frame.rate.data)))
+            addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), rates=toRates(frame.rate.data)))
+        addClient(src, Client())
 
         addEdge(src, dst, color=REASSOC_REQ)
-    elif frame.subtype == M_REASSOC_RESP: # DONE
+    elif frame.subtype == M_REASSOC_RESP:
         logging.info(f"Got reassociation response from {src}")
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data), ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(dst, Client())
@@ -257,7 +272,7 @@ def processManagementFrame(frame):
         
 
 # DEV
-raw_pcap = open("dump_test.pcap", "rb")
+raw_pcap = open("home.pcap", "rb")
 pcap = dpkt.pcap.Reader(raw_pcap)
 
 if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
@@ -282,6 +297,8 @@ for ts, buf in pcap:
         processManagementFrame(dot11)
 
 raw_pcap.close()
+
+generateNodesColors()
 
 logging.info("Generating dot file")
 nx.nx_agraph.write_dot(G, 'test.dot')
