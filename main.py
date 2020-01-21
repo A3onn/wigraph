@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
-import dpkt, pprint, logging
+from sys import exit
+import dpkt, pprint, logging, argparse, subprocess
 import networkx as nx
-
-logging.basicConfig(level=logging.INFO)
 
 # ------- DEBUGGING ----------
 pp = pprint.PrettyPrinter()
@@ -16,10 +15,7 @@ def dbgPrint(p):
 # CONSTANTS
 G = nx.MultiDiGraph()
 
-INFRASTRUCTURE = "Infrastructure"
-AD_HOC = "AD-HOC"
-
-# type of node
+# types of node
 AP_T = 0
 CLIENT_T = 1
 REPEATER_T = 2
@@ -72,7 +68,7 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            logging.warning(f"Wrong type, {other} is not an AP")
+            logging.warning(f"Wrong type, {other.__class__} is not an AP")
             raise TypeError()
 
         if not self.bssid and other.bssid:
@@ -98,7 +94,7 @@ class Client:
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            logging.warning(f"Wrong type, {other} is not a Client")
+            logging.warning(f"Wrong type, {other.__class__} is not a Client")
             raise TypeError()
 
         if other.probes:
@@ -128,7 +124,7 @@ def whatIs(mac):
 
 def addEdge(src, dst, color):
     if not G.has_edge(src, dst):
-        logging.debug(f"Adding new edge between {src} and {dst}")
+        logging.info(f"Adding new edge between {src} and {dst}")
         G.add_edge(src, dst, color=color)
 
 def addAP(mac, ap):
@@ -269,36 +265,73 @@ def processManagementFrame(frame):
             addEdge(src, dst, color=ACTION_FROM_CLIENT)
         elif who == UNKNOWN_T:
             logging.info(f"Got action frame from {src} (UNKNOWN)")
-        
 
-# DEV
-raw_pcap = open("home.pcap", "rb")
-pcap = dpkt.pcap.Reader(raw_pcap)
+def parseWithRadio(pcap):
+    for ts, buf in pcap:
+        try:
+            radio_tap = dpkt.radiotap.Radiotap(buf)
+            dot11 = radio_tap.data
+        except Exception as e:
+            logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
+            continue
 
-if pcap.datalink() != dpkt.pcap.DLT_IEEE802_11_RADIO:
-    logging.critical("Wrong link type")
-    exit(1)
+        if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
+            logging.error(f"#{c} frame is not an IEEE802.11 frame")
+            continue
 
-c = 0
-for ts, buf in pcap:
-    c += 1
+        if dot11.type == MGMT_TYPE: # management frames
+            processManagementFrame(dot11)
+
+def parseWithoutRadio(pcap):
+    for ts, buf in pcap:
+        try:
+            dot11 = dpkt.ieee80211.IEEE80211(buf)
+        except Exception as e:
+            logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
+            continue
+
+        if dot11.type == MGMT_TYPE: # management frames
+            processManagementFrame(dot11)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
+    parser.add_argument("pcap", help="pcap to parse")
+    parser.add_argument("output_name", help="name without extension of the output file")
+    parser.add_argument("--type", "-t", help="output file's type", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("-v", "--verbose", help="Display more info when parsing", action="count")
+    args = parser.parse_args()
+
     try:
-        radio_tap = dpkt.radiotap.Radiotap(buf)
-        dot11 = radio_tap.data
-    except Exception as e:
-        logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
-        continue
+        raw_pcap = open(args.pcap, "rb")
+    except FileNotFoundError:
+        exit(f"No file found: {args.pcap}")
+    
+    try:
+        pcap = dpkt.pcap.Reader(raw_pcap)
+    except:
+        raw_pcap.close()
+        exit(f"An error occured while reading {args.pcap}")
 
-    if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
-        logging.error(f"#{c} frame is not an IEEE802.11 frame")
-        continue
+    if args.verbose == 2:
+        logging.basicConfig(level=logging.DEBUG)
+    elif args.verbose == 1:
+        logging.basicConfig(level=logging.INFO)
 
-    if dot11.type == MGMT_TYPE: # management frames
-        processManagementFrame(dot11)
+    if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
+        parseWithRadio(pcap)
+    elif pcap.datalink() == DLT_IEEE802_11:
+        parseWithoutRadio(pcap)
+    else:
+        raw_pcap.close()
+        exit("Wrong link-layer header types. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
 
-raw_pcap.close()
+    raw_pcap.close()
+    generateNodesColors()
 
-generateNodesColors()
-
-logging.info("Generating dot file")
-nx.nx_agraph.write_dot(G, 'test.dot')
+    nx.nx_agraph.write_dot(G, args.output_name + ".dot")
+    if args.type != "dot":
+        try:
+            r = subprocess.call(["dot", args.output_name + ".dot", "-T", args.type, "-O"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except FileNotFoundError:
+            exit("Impossible to generate the image! Maybe Graphviz isn't installed properly.")
