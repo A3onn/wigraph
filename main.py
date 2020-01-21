@@ -299,6 +299,7 @@ if __name__ == "__main__":
     parser.add_argument("pcap", help="pcap to parse")
     parser.add_argument("output_name", help="name without extension of the output file")
     parser.add_argument("--type", "-t", help="output file's type", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     parser.add_argument("-v", "--verbose", help="Display more info when parsing", action="count")
     args = parser.parse_args()
 
@@ -320,18 +321,23 @@ if __name__ == "__main__":
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         parseWithRadio(pcap)
-    elif pcap.datalink() == DLT_IEEE802_11:
+    elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
         parseWithoutRadio(pcap)
     else:
         raw_pcap.close()
-        exit("Wrong link-layer header types. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
+        exit("Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
 
     raw_pcap.close()
-    generateNodesColors()
 
+    generateNodesColors()
     nx.nx_agraph.write_dot(G, args.output_name + ".dot")
+
     if args.type != "dot":
         try:
-            r = subprocess.call(["dot", args.output_name + ".dot", "-T", args.type, "-O"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            r = subprocess.call([args.graph, args.output_name + ".dot", "-T", args.type, "-o", args.output_name + "." + args.type], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if r != 0:
+                exit(f"An error occured while generating the image! Left {args.output_name}.dot intact.")
+            else:
+                print("Image generated!")
         except FileNotFoundError:
             exit("Impossible to generate the image! Maybe Graphviz isn't installed properly.")
