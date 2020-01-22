@@ -278,6 +278,13 @@ def processDataFrame(frame):
     dst = frame.data_frame.dst.hex(":")
     bssid = frame.data_frame.bssid.hex(":")
 
+    if frame.to_ds == 1 and frame.from_ds == 0:
+        addClient(src, Client())
+        addAP(dst, AP())
+
+        addEdge(src, dst, color=DATA)
+
+
 def parseWithRadio(pcap):
     c = 0
     for ts, buf in pcap:
