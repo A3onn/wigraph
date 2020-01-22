@@ -45,6 +45,7 @@ DISASSOC_FROM_CLIENT = "#32CD32" # lime green
 DISASSOC_FROM_AP = "#007800"
 ACTION_FROM_AP = "#556B2F" # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
+DATA = "#FFFFFF"
 
 # CLASSES
 class AP:
@@ -55,6 +56,9 @@ class AP:
         self.rates = rates
 
     def __str__(self):
+        if len(self.rates) == 0: # add empty lists
+            self.rates.append([])
+            self.rates.append([])
         supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
         basic_rates = ",".join(map(str, self.rates[1])) # same here
         return f"bssid: {self.bssid}\nssid: {self.ssid}\nchannel: {self.ch}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}"
@@ -90,7 +94,7 @@ class AP:
 class Client:
     def __init__(self, probe=""):
         # might add more attributes later
-        self.probes = [probe if probe else "<wildcard>"]
+        self.probes = [probe if probe else "<broadcast>"]
 
     def __str__(self):
         probed = ",".join(self.probes)
@@ -102,9 +106,8 @@ class Client:
             raise TypeError()
 
         if other.probes:
-            probe = other.probes[0] if other.probes[0] else "<wildcard>" # other has only one probe
-            if not probe in self.probes:
-                self.probes.append(probe)
+            if not other.probes[0] in self.probes:
+                self.probes.append(other.probes[0])
 
 # FUNCTIONS
 def toRates(raw):
@@ -354,7 +357,7 @@ if __name__ == "__main__":
     if args.format != "dot":
         try:
             print(f"{ACTION} Generating {args.output}.{args.format}")
-            r = subprocess.call([args.graph, args.output + ".dot", "-T", args.format, "-o", args.output + "." + args.format], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            r = subprocess.call([args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if r != 0:
                 print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
                 exit(1)
