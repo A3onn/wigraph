@@ -45,7 +45,7 @@ DISASSOC_FROM_CLIENT = "#32CD32" # lime green
 DISASSOC_FROM_AP = "#007800"
 ACTION_FROM_AP = "#556B2F" # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
-DATA = "#FFFFFF"
+DATA = "#000000"
 
 # CLASSES
 class AP:
@@ -76,7 +76,7 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            logging.warning(f"Wrong type, {other.__class__} is not an AP")
+            logging.warning(f"Wrong type, {other.__class__.__name__} is not an AP")
             raise TypeError()
 
         if not self.bssid and other.bssid:
@@ -102,7 +102,7 @@ class Client:
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            logging.warning(f"Wrong type, {other.__class__} is not a Client")
+            logging.warning(f"Wrong type, {other.__class__.__name__} is not a Client")
             raise TypeError()
 
         if other.probes:
@@ -142,11 +142,11 @@ def addAP(mac, ap):
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
-            logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % ap
+            logging.debug(f"Updating AP: {mac}")
         except TypeError:
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
-            logging.debug(f"Put {mac} as a repeater")
+            logging.debug(f"Marked {mac} as a repeater")
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
@@ -156,11 +156,11 @@ def addClient(mac, client):
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
-            logging.debug(f"Updating client: {mac}")
             G.nodes[mac]["value"] % client
+            logging.debug(f"Updating client: {mac}")
         except TypeError:
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
-            logging.debug(f"Put {mac} as a repeater")
+            logging.debug(f"Marked {mac} as a repeater")
 
 def processManagementFrame(frame):
     src = frame.mgmt.src.hex(":")
@@ -175,29 +175,29 @@ def processManagementFrame(frame):
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
     elif frame.subtype == M_PROBE_REQ:
-        logging.debug(f"Got probe request from {src}")
+        logging.debug(f"Got probe request from {src} to {dst}")
         addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP:
-        logging.debug(f"Got probe response from {src}")
+        logging.debug(f"Got probe response from {src} to {dst}")
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
         addEdge(src, dst, color=PROBE_RESP)
     elif frame.subtype == M_ASSOC_REQ:
-        logging.debug(f"Got association request from {src}")
+        logging.debug(f"Got association request from {src} to {dst}")
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
 
         addEdge(src, dst, color=ASSOC_REQ)
     elif frame.subtype == M_ASSOC_RESP:
-        logging.debug(f"Got association response from {src}")
+        logging.debug(f"Got association response from {src} to {dst}")
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
         addEdge(src, dst, color=ASSOC_RESP)
     elif frame.subtype == M_REASSOC_REQ:
-        logging.debug(f"Got reassociation request from {src}")
+        logging.debug(f"Got reassociation request from {src} to {dst}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
             addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), rates=toRates(frame.rate.data)))
@@ -205,20 +205,20 @@ def processManagementFrame(frame):
 
         addEdge(src, dst, color=REASSOC_REQ)
     elif frame.subtype == M_REASSOC_RESP:
-        logging.debug(f"Got reassociation response from {src}")
+        logging.debug(f"Got reassociation response from {src} to {dst}")
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data), ssid=frame.ssid.data.decode("utf-8", "ignore")))
         addClient(dst, Client())
 
         addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
-            logging.debug(f"Got authentification request from {src}")
+            logging.debug(f"Got authentification request from {src} to {dst}")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
 
             addEdge(src, dst, color=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
-            logging.debug(f"Got authentification response from {src}")
+            logging.debug(f"Got authentification response from {src} to {dst}")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
 
@@ -273,6 +273,11 @@ def processManagementFrame(frame):
         elif who == UNKNOWN_T:
             logging.debug(f"Got action frame from {src} (UNKNOWN)")
 
+def processDataFrame(frame):
+    src = frame.data_frame.src.hex(":")
+    dst = frame.data_frame.dst.hex(":")
+    bssid = frame.data_frame.bssid.hex(":")
+
 def parseWithRadio(pcap):
     c = 0
     for ts, buf in pcap:
@@ -290,6 +295,9 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11)
             c += 1
+        elif dot11.type == DATA_TYPE:
+            processDataFrame(dot11)
+            c += 1
     return c
 
 def parseWithoutRadio(pcap):
@@ -303,6 +311,9 @@ def parseWithoutRadio(pcap):
 
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11)
+            c += 1
+        elif dot11.type == DATA_TYPE:
+            processDataFrame(dot11)
             c += 1
     return c
 
