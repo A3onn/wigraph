@@ -200,13 +200,13 @@ def processManagementFrame(frame):
         logging.debug(f"Got reassociation request from {src} to {dst}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
-            addAP(dst, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), rates=toRates(frame.rate.data)))
+            addAP(dst, AP(bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
 
         addEdge(src, dst, color=REASSOC_REQ)
     elif frame.subtype == M_REASSOC_RESP:
         logging.debug(f"Got reassociation response from {src} to {dst}")
-        addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data), ssid=frame.ssid.data.decode("utf-8", "ignore")))
+        addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client())
 
         addEdge(src, dst, color=REASSOC_RESP)
@@ -341,7 +341,10 @@ if __name__ == "__main__":
         exit(1)
     
     try:
-        pcap = dpkt.pcap.Reader(raw_pcap)
+        if args.pcap.endswith("pcapng") or args.pcap.endswith("pcap-ng"):
+            pcap = dpkt.pcapng.Reader(raw_pcap)
+        else:
+            pcap = dpkt.pcap.Reader(raw_pcap)
     except:
         raw_pcap.close()
         print(f"{FAIL} An error occured while reading {args.pcap}")
