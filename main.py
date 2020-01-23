@@ -341,7 +341,7 @@ if __name__ == "__main__":
         exit(1)
     
     try:
-        if args.pcap.endswith("pcapng") or args.pcap.endswith("pcap-ng"):
+        if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
             pcap = dpkt.pcapng.Reader(raw_pcap)
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
