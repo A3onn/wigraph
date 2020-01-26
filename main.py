@@ -265,10 +265,10 @@ def processDataFrame(frame):
 
         addEdge(src, dst, color=DATA)
     elif frame.to_ds == 1 and frame.from_ds == 1:
-        addAP(frame.data_frame.da, AP())
-        addAP(frame.data_frame.sa, AP())
+        addAP(frame.data_frame.da.hex(":"), AP())
+        addAP(frame.data_frame.sa.hex(":"), AP())
 
-        addEdge(frame.data_frame.sa, frame.data_frame.da, color=DATA_INTER_DS)
+        addEdge(frame.data_frame.sa.hex(":"), frame.data_frame.da.hex(":"), color=DATA_INTER_DS)
 
 
 def parseWithRadio(pcap):
@@ -329,32 +329,32 @@ if __name__ == "__main__":
             pcap = dpkt.pcap.Reader(raw_pcap)
     except:
         raw_pcap.close()
-        print(f"{FAIL} An error occured while reading {args.pcap}")
+        print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithRadio(pcap)
-        print(f"{ACTION} Parsed {count} frames")
+        print(f"{ACTION} Parsed {count} frames!")
     elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithoutRadio(pcap)
-        print(f"{ACTION} Parsed {count} frames")
+        print(f"{ACTION} Parsed {count} frames!")
     else:
         raw_pcap.close()
-        print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP")
+        print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
 
     raw_pcap.close()
 
-    print(f"{ACTION} Generating {args.output}.dot file")
+    print(f"{ACTION} Generating {args.output}.dot file...")
     generateNodesColors()
     nx.nx_agraph.write_dot(G, args.output + ".dot")
     print(f"{ACTION} {args.output}.dot generated!")
 
     if args.format != "dot":
         try:
-            print(f"{ACTION} Generating {args.output}.{args.format}")
+            print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
             r = subprocess.call([args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if r != 0:
                 print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
