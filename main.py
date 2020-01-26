@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
-import dpkt, pprint, logging, argparse, subprocess
+import dpkt, argparse, subprocess
 import networkx as nx
 
-# ------- DEBUGGING ----------
-pp = pprint.PrettyPrinter()
-def dbgPrint(p):
-    pp.pprint(p.__dict__)
-    exit(0)
-#----------------------------
 
 # CONSTANTS
+
 G = nx.MultiDiGraph()
 
 # colors
@@ -52,17 +47,18 @@ DATA_INTER_DS = "#A0A0A0"
 class AP:
     def __init__(self, bssid="", ssid="", ch=-1, rates=[]):
         self.bssid = bssid
-        self.ssid = ssid if ssid else "<none>"
+        self.ssid = ssid
         self.ch = ch
         self.rates = rates
 
     def __str__(self):
         if len(self.rates) == 0: # add empty lists
-            self.rates.append([])
-            self.rates.append([])
-        supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
-        basic_rates = ",".join(map(str, self.rates[1])) # same here
-        return f"bssid: {self.bssid}\nssid: {self.ssid}\nchannel: {self.ch}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}"
+            supported_rates = "<unknown>"
+            basic_rates = "<unknown>"
+        else:
+            supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
+            basic_rates = ",".join(map(str, self.rates[1])) # same here
+        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}"
 
     def __mod__(self, other):
         """
@@ -77,7 +73,6 @@ class AP:
         """
 
         if not isinstance(other, AP):
-            logging.warning(f"Wrong type, {other.__class__.__name__} is not an AP")
             raise TypeError()
 
         if not self.bssid and other.bssid:
@@ -98,12 +93,14 @@ class Client:
         self.probes = [probe if probe else "<broadcast>"]
 
     def __str__(self):
-        probed = ",".join(self.probes)
-        return f"probed: {probed}"
+        if self.probes:
+            probed = ",".join(self.probes)
+            return f"probed: {probed}"
+        else:
+            return ""
 
     def __mod__(self, other):
         if not isinstance(other, Client):
-            logging.warning(f"Wrong type, {other.__class__.__name__} is not a Client")
             raise TypeError()
 
         if other.probes:
@@ -132,36 +129,29 @@ def whatIs(mac):
 
 def addEdge(src, dst, color):
     if not G.has_edge(src, dst, key=color):
-        logging.info(f"Adding new edge between {src} and {dst}")
         G.add_edge(src, dst, color=color, key=color)
 
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
-        logging.info(f"Adding new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
             G.nodes[mac]["value"] % ap
-            logging.debug(f"Updating AP: {mac}")
         except TypeError:
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
-            logging.debug(f"Marked {mac} as a repeater")
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
-        logging.info(f"Adding new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
             return
         try:
             G.nodes[mac]["value"] % client
-            logging.debug(f"Updating client: {mac}")
         except TypeError:
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
-            logging.debug(f"Marked {mac} as a repeater")
 
 def processManagementFrame(frame):
     src = frame.mgmt.src.hex(":")
@@ -172,33 +162,27 @@ def processManagementFrame(frame):
         ibss = frame.capability.ibss
 
     if frame.subtype == M_BEACON:
-        logging.debug(f"Got beacon from {src}")
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
     elif frame.subtype == M_PROBE_REQ:
-        logging.debug(f"Got probe request from {src} to {dst}")
         addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP:
-        logging.debug(f"Got probe response from {src} to {dst}")
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
         addEdge(src, dst, color=PROBE_RESP)
     elif frame.subtype == M_ASSOC_REQ:
-        logging.debug(f"Got association request from {src} to {dst}")
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
 
         addEdge(src, dst, color=ASSOC_REQ)
     elif frame.subtype == M_ASSOC_RESP:
-        logging.debug(f"Got association response from {src} to {dst}")
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
         addEdge(src, dst, color=ASSOC_RESP)
     elif frame.subtype == M_REASSOC_REQ:
-        logging.debug(f"Got reassociation request from {src} to {dst}")
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
             addAP(dst, AP(bssid=bssid, rates=toRates(frame.rate.data)))
@@ -206,20 +190,17 @@ def processManagementFrame(frame):
 
         addEdge(src, dst, color=REASSOC_REQ)
     elif frame.subtype == M_REASSOC_RESP:
-        logging.debug(f"Got reassociation response from {src} to {dst}")
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client())
 
         addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
-            logging.debug(f"Got authentification request from {src} to {dst}")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
 
             addEdge(src, dst, color=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
-            logging.debug(f"Got authentification response from {src} to {dst}")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
 
@@ -228,51 +209,45 @@ def processManagementFrame(frame):
     elif frame.subtype == M_DEAUTH:
         who = whatIs(src)
         if who == AP_T:
-            logging.debug(f"Got deauthentification frame from {src} (AP)")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
             addEdge(src, dst, color=DEAUTH_FROM_AP)
         elif who == CLIENT_T:
-            logging.debug(f"Got deauthentification frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
             addEdge(src, dst, color=DEAUTH_FROM_CLIENT)
         elif who == UNKNOWN_T:
-            logging.debug(f"Got deauthentification frame from {src} (UNKNOWN)")
+            pass
     elif frame.subtype == M_DISASSOC:
         who = whatIs(src)
         if who == AP_T:
-            logging.debug(f"Got disassociation frame from {src} (AP)")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
             addEdge(src, dst, color=DISASSOC_FROM_AP)
         elif who == CLIENT_T:
-            logging.debug(f"Got disassociation frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
             addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
         elif who == UNKNOWN_T:
-            logging.debug(f"Got disassociation frame from {src} (UNKNOWN)")
+            pass
     elif frame.subtype == M_ACTION:
         who = whatIs(src)
         if who == AP_T:
-            logging.debug(f"Got action frame from {src} (AP)")
             addAP(src, AP(bssid=bssid))
             addClient(dst, Client())
             
             addEdge(src, dst, color=ACTION_FROM_AP)
         elif who == CLIENT_T:
-            logging.debug(f"Got action frame from {src} (CLIENT)")
             addAP(dst, AP(bssid=bssid))
             addClient(src, Client())
             
             addEdge(src, dst, color=ACTION_FROM_CLIENT)
         elif who == UNKNOWN_T:
-            logging.debug(f"Got action frame from {src} (UNKNOWN)")
+            pass
 
 def processDataFrame(frame):
     src = frame.data_frame.src.hex(":")
@@ -303,11 +278,9 @@ def parseWithRadio(pcap):
             radio_tap = dpkt.radiotap.Radiotap(buf)
             dot11 = radio_tap.data
         except Exception as e:
-            logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
             continue
 
         if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
-            logging.error(f"#{c} frame is not an IEEE802.11 frame")
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
@@ -324,7 +297,6 @@ def parseWithoutRadio(pcap):
         try:
             dot11 = dpkt.ieee80211.IEEE80211(buf)
         except Exception as e:
-            logging.error(f"Exception occurred with frame #{c}:", exc_info=True)
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
