@@ -9,6 +9,8 @@ import networkx as nx
 
 G = nx.MultiDiGraph()
 
+ignore_probe_resp = False
+
 # colors
 ACTION = "\033[92m[o]\033[0m"
 INFO = "\033[93m[i]\033[0m"
@@ -165,10 +167,11 @@ def processManagementFrame(frame):
     if frame.subtype == M_BEACON:
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
-        G.nodes[src]["value"].beacons += 1
+        if whatIs(src) == AP_T: # check if src hasn't been put as a repeater
+            G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
         addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
-    elif frame.subtype == M_PROBE_RESP:
+    elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
@@ -178,19 +181,19 @@ def processManagementFrame(frame):
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
 
-        addEdge(src, dst, color=ASSOC_REQ)
+        addEdge(src, dst, color=ASSOC_REQ, style="box" if ibss else "solid")
     elif frame.subtype == M_ASSOC_RESP:
         addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client())
         
-        addEdge(src, dst, color=ASSOC_RESP)
+        addEdge(src, dst, color=ASSOC_RESP, style="box" if ibss else "solid")
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
             addAP(dst, AP(bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
 
-        addEdge(src, dst, color=REASSOC_REQ)
+        addEdge(src, dst, color=REASSOC_REQ, style="box" if ibss else "solid")
     elif frame.subtype == M_REASSOC_RESP:
         addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client())
@@ -318,9 +321,10 @@ def parseWithoutRadio(pcap):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
-    parser.add_argument("--pcap", "-p", help="pcap to parse", required=True)
-    parser.add_argument("--output", "-o", help="name without extension of the output file", required=True)
-    parser.add_argument("--format", "-f", help="output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
+    parser.add_argument("--output", "-o", help="Name without extension of the output file", required=True)
+    parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
+    parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
@@ -340,6 +344,9 @@ if __name__ == "__main__":
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
 
+    if args.no_probe:
+        ignore_probe_resp = True
+
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithRadio(pcap)
@@ -352,6 +359,7 @@ if __name__ == "__main__":
         raw_pcap.close()
         print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
+
 
     raw_pcap.close()
 
