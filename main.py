@@ -254,16 +254,22 @@ def processDataFrame(frame):
     dst = frame.data_frame.dst.hex(":")
 
     if frame.to_ds == 1 and frame.from_ds == 0:
-        addClient(src, Client())
-        addAP(dst, AP(bssid=frame.data_frame.bssid.hex(":")))
-
-        addEdge(src, dst, color=DATA)
+        if dst != "ff:ff:ff:ff:ff:ff":
+            addAP(dst, AP(bssid=frame.data_frame.bssid.hex(":")))
+        if src != "ff:ff:ff:ff:ff:ff":
+            addClient(src, Client())
+        
+        if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
+            addEdge(src, dst, color=DATA)
 
     elif frame.to_ds == 0 and frame.to_ds == 1:
-        addAP(src, AP(bssid=frame.data_frame.bssid.hex(":")))
-        addClient(dst, Client())
-
-        addEdge(src, dst, color=DATA)
+        if src != "ff:ff:ff:ff:ff:ff":
+            addAP(src, AP(bssid=frame.data_frame.bssid.hex(":")))
+        if dst != "ff:ff:ff:ff:ff:ff":
+            addClient(dst, Client())
+        
+        if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
+            addEdge(src, dst, color=DATA)
     elif frame.to_ds == 1 and frame.from_ds == 1:
         addAP(frame.data_frame.da.hex(":"), AP())
         addAP(frame.data_frame.sa.hex(":"), AP())
