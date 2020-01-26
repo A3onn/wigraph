@@ -46,6 +46,7 @@ DISASSOC_FROM_AP = "#007800"
 ACTION_FROM_AP = "#556B2F" # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
 DATA = "#000000"
+DATA_INTER_DS = "#A0A0A0"
 
 # CLASSES
 class AP:
@@ -276,13 +277,23 @@ def processManagementFrame(frame):
 def processDataFrame(frame):
     src = frame.data_frame.src.hex(":")
     dst = frame.data_frame.dst.hex(":")
-    bssid = frame.data_frame.bssid.hex(":")
 
     if frame.to_ds == 1 and frame.from_ds == 0:
         addClient(src, Client())
-        addAP(dst, AP())
+        addAP(dst, AP(bssid=frame.data_frame.bssid.hex(":")))
 
         addEdge(src, dst, color=DATA)
+
+    elif frame.to_ds == 0 and frame.to_ds == 1:
+        addAP(src, AP(bssid=frame.data_frame.bssid.hex(":")))
+        addClient(dst, Client())
+
+        addEdge(src, dst, color=DATA)
+    elif frame.to_ds == 1 and frame.from_ds == 1:
+        addAP(frame.data_frame.da, AP())
+        addAP(frame.data_frame.sa, AP())
+
+        addEdge(frame.data_frame.sa, frame.data_frame.da, color=DATA_INTER_DS)
 
 
 def parseWithRadio(pcap):
