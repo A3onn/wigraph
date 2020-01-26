@@ -50,6 +50,7 @@ class AP:
         self.ssid = ssid
         self.ch = ch
         self.rates = rates
+        self.beacons = 0
 
     def __str__(self):
         if len(self.rates) == 0: # add empty lists
@@ -58,7 +59,7 @@ class AP:
         else:
             supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
             basic_rates = ",".join(map(str, self.rates[1])) # same here
-        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}"
+        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}\nbeacons: {self.beacons}"
 
     def __mod__(self, other):
         """
@@ -164,6 +165,7 @@ def processManagementFrame(frame):
     if frame.subtype == M_BEACON:
         addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
+        G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
         addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP:
