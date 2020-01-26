@@ -314,7 +314,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", "-o", help="name without extension of the output file", required=True)
     parser.add_argument("--format", "-f", help="output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
-    parser.add_argument("-v", "--verbose", help="Display more info when parsing", action="count")
     args = parser.parse_args()
 
     try:
