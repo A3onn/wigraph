@@ -332,11 +332,6 @@ if __name__ == "__main__":
         print(f"{FAIL} An error occured while reading {args.pcap}")
         exit(1)
 
-    if args.verbose == 2:
-        logging.basicConfig(level=logging.DEBUG)
-    elif args.verbose == 1:
-        logging.basicConfig(level=logging.INFO)
-
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithRadio(pcap)
@@ -366,6 +361,7 @@ if __name__ == "__main__":
                 exit(1)
             else:
                 print(f"{ACTION} {args.output}.{args.format} generated!")
+                subprocess.call(["rm", args.output + ".dot"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except FileNotFoundError:
             print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
             exit(1)
