@@ -22,9 +22,9 @@ UNKNOWN_T = 3
 
 # COLORS
 # nodes
-AP_C = "#ff0000"
-CLIENT_C = "#0000ff"
-REPEATER_C = "#00ff00"
+AP_C = "#FF7777"
+CLIENT_C = "#7777FF"
+REPEATER_C = "#77FF77"
 
 # edges
 ASSOC_REQ = "#0000FF" # blue
@@ -116,20 +116,20 @@ def generateNodesColors():
     # this is used to avoid generating the label of each node each time there is a modification
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "color": AP_C}})
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "color": CLIENT_C}})
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + "Repeater", "color": REPEATER_C}})
+            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + "Repeater", "style": "filled", "fillcolor": REPEATER_C}})
 
 def whatIs(mac):
     if mac in G.nodes:
         return G.nodes[mac]["type"]
     return UNKNOWN_T
 
-def addEdge(src, dst, color):
+def addEdge(src, dst, color, style="solid"):
     if not G.has_edge(src, dst, key=color):
-        G.add_edge(src, dst, color=color, key=color)
+        G.add_edge(src, dst, color=color, style=style, key=color)
 
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
@@ -171,7 +171,7 @@ def processManagementFrame(frame):
                 rates=toRates(frame.rate.data)))
         addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
 
-        addEdge(src, dst, color=PROBE_RESP)
+        addEdge(src, dst, color=PROBE_RESP, style="dotted")
     elif frame.subtype == M_ASSOC_REQ:
         addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client())
