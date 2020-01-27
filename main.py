@@ -325,6 +325,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", "-o", help="Name without extension of the output file", required=True)
     parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
     parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
@@ -377,7 +378,8 @@ if __name__ == "__main__":
                 exit(1)
             else:
                 print(f"{ACTION} {args.output}.{args.format} generated!")
-                subprocess.call(["rm", args.output + ".dot"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if not args.keep:
+                    subprocess.call(["rm", args.output + ".dot"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except FileNotFoundError:
             print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
             exit(1)
