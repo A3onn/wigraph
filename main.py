@@ -347,7 +347,7 @@ if __name__ == "__main__":
     parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
     parser.add_argument("--output", "-o", help="Name without extension of the output file", required=True)
     parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
-    parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
+    parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
