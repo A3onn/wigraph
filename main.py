@@ -4,12 +4,12 @@ from dpkt.ieee80211 import *
 import dpkt, argparse, subprocess
 import networkx as nx
 
-
 # CONSTANTS
 
 G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
+verbose = False
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -136,6 +136,8 @@ def addEdge(src, dst, color, style="solid"):
 
 def addAP(mac, ap):
     if not mac in G.nodes: # if first time seeing ap
+        if verbose:
+            print(f"{INFO} Added new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
@@ -143,10 +145,14 @@ def addAP(mac, ap):
         try:
             G.nodes[mac]["value"] % ap
         except TypeError:
+            if verbose:
+                print(f"{INFO} Marked {mac} as a repeater")
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
+        if verbose:
+            print(f"{INFO} Added new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
@@ -154,6 +160,8 @@ def addClient(mac, client):
         try:
             G.nodes[mac]["value"] % client
         except TypeError:
+            if verbose:
+                print(f"{INFO} Marked {mac} as a repeater")
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
 
 def processManagementFrame(frame):
@@ -326,6 +334,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
     parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
+    parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
@@ -347,6 +356,8 @@ if __name__ == "__main__":
 
     if args.no_probe:
         ignore_probe_resp = True
+    if args.verbose:
+        verbose = True
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
