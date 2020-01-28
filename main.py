@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
-import dpkt, argparse, subprocess
+from subprocess import call, PIPE
+import dpkt, argparse
 import networkx as nx
 
 # CONSTANTS
@@ -299,7 +300,7 @@ def parseWithRadio(pcap):
         except Exception as e:
             continue
 
-        if not isinstance(dot11, dpkt.ieee80211.IEEE80211): # check if the frame is a 802.11 packet
+        if not isinstance(dot11, IEEE80211): # check if the frame is a 802.11 packet
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
@@ -314,7 +315,7 @@ def parseWithoutRadio(pcap):
     c = 0
     for ts, buf in pcap:
         try:
-            dot11 = dpkt.ieee80211.IEEE80211(buf)
+            dot11 = IEEE80211(buf)
         except Exception as e:
             continue
 
@@ -383,14 +384,14 @@ if __name__ == "__main__":
     if args.format != "dot":
         try:
             print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
-            r = subprocess.call([args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            r = call([args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format], stdout=PIPE, stderr=PIPE)
             if r != 0:
                 print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
                 exit(1)
             else:
                 print(f"{ACTION} {args.output}.{args.format} generated!")
                 if not args.keep:
-                    subprocess.call(["rm", args.output + ".dot"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    call(["rm", args.output + ".dot"], stdout=PIPE, stderr=PIPE)
         except FileNotFoundError:
             print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
             exit(1)
