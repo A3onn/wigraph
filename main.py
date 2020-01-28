@@ -362,8 +362,12 @@ if __name__ == "__main__":
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
             pcap = dpkt.pcapng.Reader(raw_pcap)
+            packets = pcap.readpkts()
+            raw_pcap.close()
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
+            packets = pcap.readpkts()
+            raw_pcap.close()
     except:
         raw_pcap.close()
         print(f"{FAIL} An error occured while reading {args.pcap}.")
@@ -376,11 +380,11 @@ if __name__ == "__main__":
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
-        count = parseWithRadio(pcap)
+        count = parseWithRadio(packets)
         print(f"{ACTION} Parsed {count} frames!")
     elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
         print(f"{ACTION} Begining of parsing!")
-        count = parseWithoutRadio(pcap)
+        count = parseWithoutRadio(packets)
         print(f"{ACTION} Parsed {count} frames!")
     else:
         raw_pcap.close()
