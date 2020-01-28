@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
 from subprocess import call, PIPE
-import dpkt, argparse
+import dpkt, argparse, time
 import networkx as nx
 
 # CONSTANTS
@@ -48,12 +48,14 @@ DATA_INTER_DS = "#A0A0A0"
 
 # CLASSES
 class AP:
-    def __init__(self, bssid="", ssid="", ch=-1, rates=[]):
+    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[]):
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
         self.rates = rates
         self.beacons = 0
+        self.first_seen = ts
+        self.last_seen = ts
 
     def __str__(self):
         if len(self.rates) == 0: # add empty lists
@@ -62,18 +64,24 @@ class AP:
         else:
             supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
             basic_rates = ",".join(map(str, self.rates[1])) # same here
-        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}\nbeacons: {self.beacons}"
+        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}\nbeacons: {self.beacons}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
 
     def __mod__(self, other):
         """
         Can now use the % operator to add missing parts of an instance
         by creating another instance with some attirbutes set (= other)
         and getting these attributes and add them into this instance:
-        a = AP(ssid="ap 1", bssid="11:22:33:44:55:66")
+        a = AP(ts, ssid="ap 1", bssid="11:22:33:44:55:66")
         ...
         some code
         ...
-        a % AP(ch=5) # This will change the ch attribute to 5 from a
+        a % AP(ts, ch=5) # This will change the ch attribute to 5
+
+        Mind you that Ap(ts, ch=5) is "disposable", it is only used when modifying
+        another existing AP instance.
+
+        I use this weird method because it is simple to implement and relatively efficient.
+        You can see it as a replacement for dict and spaghetti code to change values in these dicts
         """
 
         if not isinstance(other, AP):
@@ -91,15 +99,19 @@ class AP:
         if not self.rates and other.rates:
             self.rates = other.rates
 
+        self.last_seen = other.first_seen # could be other.last_seen, as other is "disposable"
+
 class Client:
-    def __init__(self, probe=""):
+    def __init__(self, ts, probe=""):
         # might add more attributes later
         self.probes = [probe if probe else "<broadcast>"]
+        self.first_seen = ts
+        self.last_seen = ts
 
     def __str__(self):
         if self.probes:
             probed = ",".join(self.probes)
-            return f"probed: {probed}"
+            return f"probed: {probed}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
         else:
             return ""
 
@@ -110,6 +122,8 @@ class Client:
         if other.probes:
             if not other.probes[0] in self.probes:
                 self.probes.append(other.probes[0])
+        
+        self.last_seen = other.first_seen # could be other.last_seen, as other is "disposable"
 
 # FUNCTIONS
 def toRates(raw):
@@ -165,7 +179,7 @@ def addClient(mac, client):
                 print(f"{INFO} Marked {mac} as a repeater")
             nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
 
-def processManagementFrame(frame):
+def processManagementFrame(frame, ts):
     src = frame.mgmt.src.hex(":")
     dst = frame.mgmt.dst.hex(":")
     bssid  = frame.mgmt.bssid.hex(":")
@@ -174,62 +188,62 @@ def processManagementFrame(frame):
         ibss = frame.capability.ibss
 
     if frame.subtype == M_BEACON:
-        addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
+        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
         if whatIs(src) == AP_T: # check if src hasn't been put as a repeater
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
-        addClient(src, Client(probe=frame.ssid.data.decode("utf-8", "ignore")))
+        addClient(src, Client(ts, probe=frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
-        addAP(src, AP(bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
+        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
-        addClient(dst, Client(frame.ssid.data.decode("utf-8", "ignore")))
+        addClient(dst, Client(ts, frame.ssid.data.decode("utf-8", "ignore")))
 
         addEdge(src, dst, color=PROBE_RESP, style="dotted")
     elif frame.subtype == M_ASSOC_REQ:
-        addAP(dst, AP(ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
-        addClient(src, Client())
+        addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
+        addClient(src, Client(ts))
 
         addEdge(src, dst, color=ASSOC_REQ, style="box" if ibss else "solid")
     elif frame.subtype == M_ASSOC_RESP:
-        addAP(src, AP(rates=toRates(frame.rate.data), bssid=bssid))
-        addClient(dst, Client())
+        addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
+        addClient(dst, Client(ts))
         
         addEdge(src, dst, color=ASSOC_RESP, style="box" if ibss else "solid")
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid: # meaning the client wants to reconnect
-            addAP(dst, AP(bssid=bssid, rates=toRates(frame.rate.data)))
-        addClient(src, Client())
+            addAP(dst, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
+        addClient(src, Client(ts))
 
         addEdge(src, dst, color=REASSOC_REQ, style="box" if ibss else "solid")
     elif frame.subtype == M_REASSOC_RESP:
-        addAP(src, AP(bssid=bssid, rates=toRates(frame.rate.data)))
-        addClient(dst, Client())
+        addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
+        addClient(dst, Client(ts))
 
         addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256: # CLIENT -> AP
-            addAP(dst, AP(bssid=bssid))
-            addClient(src, Client())
+            addAP(dst, AP(ts, bssid=bssid))
+            addClient(src, Client(ts))
 
             addEdge(src, dst, color=AUTH_REQ)
         elif frame.auth.auth_seq == 512: # AP -> CLIENT
-            addAP(src, AP(bssid=bssid))
-            addClient(dst, Client())
+            addAP(src, AP(ts, bssid=bssid))
+            addClient(dst, Client(ts))
 
             addEdge(src, dst, color=AUTH_RESP)
 
     elif frame.subtype == M_DEAUTH:
         who = whatIs(src)
         if who == AP_T:
-            addAP(src, AP(bssid=bssid))
-            addClient(dst, Client())
+            addAP(src, AP(ts, bssid=bssid))
+            addClient(dst, Client(ts))
             
             addEdge(src, dst, color=DEAUTH_FROM_AP)
         elif who == CLIENT_T:
-            addAP(dst, AP(bssid=bssid))
-            addClient(src, Client())
+            addAP(dst, AP(ts, bssid=bssid))
+            addClient(src, Client(ts))
             
             addEdge(src, dst, color=DEAUTH_FROM_CLIENT)
         elif who == UNKNOWN_T:
@@ -237,13 +251,13 @@ def processManagementFrame(frame):
     elif frame.subtype == M_DISASSOC:
         who = whatIs(src)
         if who == AP_T:
-            addAP(src, AP(bssid=bssid))
-            addClient(dst, Client())
+            addAP(src, AP(ts, bssid=bssid))
+            addClient(dst, Client(ts))
             
             addEdge(src, dst, color=DISASSOC_FROM_AP)
         elif who == CLIENT_T:
-            addAP(dst, AP(bssid=bssid))
-            addClient(src, Client())
+            addAP(dst, AP(ts, bssid=bssid))
+            addClient(src, Client(ts))
             
             addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
         elif who == UNKNOWN_T:
@@ -251,42 +265,42 @@ def processManagementFrame(frame):
     elif frame.subtype == M_ACTION:
         who = whatIs(src)
         if who == AP_T:
-            addAP(src, AP(bssid=bssid))
-            addClient(dst, Client())
+            addAP(src, AP(ts, bssid=bssid))
+            addClient(dst, Client(ts))
             
             addEdge(src, dst, color=ACTION_FROM_AP)
         elif who == CLIENT_T:
-            addAP(dst, AP(bssid=bssid))
-            addClient(src, Client())
+            addAP(dst, AP(ts, bssid=bssid))
+            addClient(src, Client(ts))
             
             addEdge(src, dst, color=ACTION_FROM_CLIENT)
         elif who == UNKNOWN_T:
             pass
 
-def processDataFrame(frame):
+def processDataFrame(frame, ts):
     src = frame.data_frame.src.hex(":")
     dst = frame.data_frame.dst.hex(":")
 
     if frame.to_ds == 1 and frame.from_ds == 0:
         if dst != "ff:ff:ff:ff:ff:ff":
-            addAP(dst, AP(bssid=frame.data_frame.bssid.hex(":")))
+            addAP(dst, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if src != "ff:ff:ff:ff:ff:ff":
-            addClient(src, Client())
+            addClient(src, Client(ts))
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
 
     elif frame.to_ds == 0 and frame.to_ds == 1:
         if src != "ff:ff:ff:ff:ff:ff":
-            addAP(src, AP(bssid=frame.data_frame.bssid.hex(":")))
+            addAP(src, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if dst != "ff:ff:ff:ff:ff:ff":
-            addClient(dst, Client())
+            addClient(dst, Client(ts))
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
     elif frame.to_ds == 1 and frame.from_ds == 1:
-        addAP(frame.data_frame.da.hex(":"), AP())
-        addAP(frame.data_frame.sa.hex(":"), AP())
+        addAP(frame.data_frame.da.hex(":"), AP(ts))
+        addAP(frame.data_frame.sa.hex(":"), AP(ts))
 
         addEdge(frame.data_frame.sa.hex(":"), frame.data_frame.da.hex(":"), color=DATA_INTER_DS)
 
@@ -304,10 +318,10 @@ def parseWithRadio(pcap):
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
-            processManagementFrame(dot11)
+            processManagementFrame(dot11, ts)
             c += 1
         elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11)
+            processDataFrame(dot11, ts)
             c += 1
     return c
 
@@ -320,10 +334,10 @@ def parseWithoutRadio(pcap):
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
-            processManagementFrame(dot11)
+            processManagementFrame(dot11, ts)
             c += 1
         elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11)
+            processDataFrame(dot11, ts)
             c += 1
     return c
 
