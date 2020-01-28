@@ -384,13 +384,18 @@ if __name__ == "__main__":
     if args.format != "dot":
         try:
             print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
-            r = call([args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format], stdout=PIPE, stderr=PIPE)
+            cmd = [args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format] # graphviz command to execute
+            if verbose:
+                print(f"{INFO} Calling: {' '.join(cmd)}")
+            r = call(cmd, stdout=PIPE, stderr=PIPE)
             if r != 0:
                 print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
                 exit(1)
             else:
                 print(f"{ACTION} {args.output}.{args.format} generated!")
                 if not args.keep:
+                    if verbose:
+                        print(f"{INFO} Calling: rm {args.output}.dot")
                     call(["rm", args.output + ".dot"], stdout=PIPE, stderr=PIPE)
         except FileNotFoundError:
             print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
