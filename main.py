@@ -58,13 +58,23 @@ class AP:
         self.last_seen = ts
 
     def __str__(self):
-        if len(self.rates) == 0: # add empty lists
-            supported_rates = "<unknown>"
-            basic_rates = "<unknown>"
-        else:
+        ret = ""
+        if self.bssid:
+            ret += f"bssid: {self.bssid}\n"
+
+        if self.ssid:
+            ret += f"ssid: {self.ssid}\n"
+
+        if self.ch != -1:
+            ret += f"ch: {self.ch}\n"
+
+        if len(self.rates) != 0: # if we knwo its rates
             supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
             basic_rates = ",".join(map(str, self.rates[1])) # same here
-        return f"bssid: {self.bssid if self.bssid else '<unknown>'}\nssid: {self.ssid if self.ssid else '<unknown>'}\nchannel: {self.ch if self.ch >= 1 else '<unknown>'}\nsupported rates: {supported_rates}\nbasic rates: {basic_rates}\nbeacons: {self.beacons}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
+            ret += f"supported rates: {supported_rates}\nbasic rates: {basic_rates}\n"
+
+        ret += f"# of beacons: {self.beacons}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
+        return ret
 
     def __mod__(self, other):
         """
@@ -109,21 +119,24 @@ class Client:
         self.last_seen = ts
 
     def __str__(self):
+        ret = ""
         if self.probes:
             probed = ",".join(self.probes)
-            return f"probed: {probed}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
-        else:
-            return ""
+            ret += f"probed: {probed}\n"
+        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
+        return ret
 
     def __mod__(self, other):
         if not isinstance(other, Client):
             raise TypeError()
-
+        
         if other.probes:
             if not other.probes[0] in self.probes:
                 self.probes.append(other.probes[0])
         
-        self.last_seen = other.first_seen # could be other.last_seen, as other is "disposable"
+        self.last_seen = other.first_seen
+        # could be other.last_seen, it's the same as 'other' is "disposable"
+        # and other.first_seen == other.last_seen
 
 # FUNCTIONS
 def toRates(raw):
@@ -190,7 +203,7 @@ def processManagementFrame(frame, ts):
     if frame.subtype == M_BEACON:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
             rates=toRates(frame.rate.data)))
-        if whatIs(src) == AP_T: # check if src hasn't been put as a repeater
+        if whatIs(src) == AP_T: # check if src hasn't been put as a repeater and add a beacon manually
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
         addClient(src, Client(ts, probe=frame.ssid.data.decode("utf-8", "ignore")))
