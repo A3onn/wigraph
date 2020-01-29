@@ -307,7 +307,7 @@ def processDataFrame(frame, ts):
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
 
-    elif frame.to_ds == 0 and frame.to_ds == 1:
+    elif frame.to_ds == 0 and frame.from_ds == 1:
         if src != "ff:ff:ff:ff:ff:ff":
             addAP(src, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if dst != "ff:ff:ff:ff:ff:ff":
