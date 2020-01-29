@@ -66,7 +66,7 @@ class AP:
             ret += f"ssid: {self.ssid}\n"
 
         if self.ch != -1:
-            ret += f"ch: {self.ch}\n"
+            ret += f"channel: {self.ch}\n"
 
         if len(self.rates) != 0: # if we knwo its rates
             supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
@@ -117,12 +117,15 @@ class Client:
         self.probes = [probe if probe else "<broadcast>"]
         self.first_seen = ts
         self.last_seen = ts
+        self.data_frames = 0
 
     def __str__(self):
         ret = ""
         if self.probes:
             probed = ",".join(self.probes)
             ret += f"probed: {probed}\n"
+        if self.data_frames > 0:
+            ret += f"# of data frame: {self.data_frames}\n"
         ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
@@ -299,6 +302,7 @@ def processDataFrame(frame, ts):
             addAP(dst, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if src != "ff:ff:ff:ff:ff:ff":
             addClient(src, Client(ts))
+            G.nodes[src]["value"].data_frames += 1
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
@@ -308,6 +312,7 @@ def processDataFrame(frame, ts):
             addAP(src, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if dst != "ff:ff:ff:ff:ff:ff":
             addClient(dst, Client(ts))
+            G.nodes[dst]["value"].data_frames += 1
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
