@@ -302,7 +302,8 @@ def processDataFrame(frame, ts):
             addAP(dst, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if src != "ff:ff:ff:ff:ff:ff":
             addClient(src, Client(ts))
-            G.nodes[src]["value"].data_frames += 1
+            if G.nodes[src]["type"] == CLIENT_T:
+                G.nodes[src]["value"].data_frames += 1
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
@@ -312,7 +313,8 @@ def processDataFrame(frame, ts):
             addAP(src, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
         if dst != "ff:ff:ff:ff:ff:ff":
             addClient(dst, Client(ts))
-            G.nodes[dst]["value"].data_frames += 1
+            if G.nodes[dst]["type"] == CLIENT_T:
+                G.nodes[dst]["value"].data_frames += 1
         
         if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
             addEdge(src, dst, color=DATA)
