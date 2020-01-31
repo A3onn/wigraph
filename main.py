@@ -293,38 +293,6 @@ def processManagementFrame(frame, ts):
         elif who == UNKNOWN_T:
             pass
 
-def processDataFrame(frame, ts):
-    src = frame.data_frame.src.hex(":")
-    dst = frame.data_frame.dst.hex(":")
-
-    if frame.to_ds == 1 and frame.from_ds == 0:
-        if dst != "ff:ff:ff:ff:ff:ff":
-            addAP(dst, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
-        if src != "ff:ff:ff:ff:ff:ff":
-            addClient(src, Client(ts))
-            if G.nodes[src]["type"] == CLIENT_T:
-                G.nodes[src]["value"].data_frames += 1
-        
-        if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
-            addEdge(src, dst, color=DATA)
-
-    elif frame.to_ds == 0 and frame.from_ds == 1:
-        if src != "ff:ff:ff:ff:ff:ff":
-            addAP(src, AP(ts, bssid=frame.data_frame.bssid.hex(":")))
-        if dst != "ff:ff:ff:ff:ff:ff":
-            addClient(dst, Client(ts))
-            if G.nodes[dst]["type"] == CLIENT_T:
-                G.nodes[dst]["value"].data_frames += 1
-        
-        if dst != "ff:ff:ff:ff:ff:ff" and src != "ff:ff:ff:ff:ff:ff":
-            addEdge(src, dst, color=DATA)
-    elif frame.to_ds == 1 and frame.from_ds == 1:
-        addAP(frame.data_frame.da.hex(":"), AP(ts))
-        addAP(frame.data_frame.sa.hex(":"), AP(ts))
-
-        addEdge(frame.data_frame.sa.hex(":"), frame.data_frame.da.hex(":"), color=DATA_INTER_DS)
-
-
 def parseWithRadio(pcap):
     c = 0
     for ts, buf in pcap:
@@ -340,9 +308,6 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
-        elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11, ts)
-            c += 1
     return c
 
 def parseWithoutRadio(pcap):
@@ -355,9 +320,6 @@ def parseWithoutRadio(pcap):
 
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
-            c += 1
-        elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11, ts)
             c += 1
     return c
 
