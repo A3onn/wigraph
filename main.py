@@ -11,8 +11,8 @@ G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
 verbose = False
-only_mac = []
-only_bssid = []
+only_mac = tuple()
+only_bssid = tuple()
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -351,9 +351,9 @@ if __name__ == "__main__":
     if args.verbose:
         verbose = True
     if args.only_mac:
-        only_mac = args.only_mac
+        only_mac = tuple(args.only_mac)
     if args.only_bssid:
-        only_bssid = args.only_bssid
+        only_bssid = tuple(args.only_bssid)
 
     try:
         raw_pcap = open(args.pcap, "rb")
