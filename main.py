@@ -12,6 +12,7 @@ G = nx.MultiDiGraph()
 ignore_probe_resp = False
 verbose = False
 only_mac = []
+only_bssid = []
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -201,8 +202,11 @@ def processManagementFrame(frame, ts):
     dst = frame.mgmt.dst.hex(":")
     bssid  = frame.mgmt.bssid.hex(":")
     
-    if len(only_mac) > 0: # if there is a filter
+    if len(only_mac) > 0: # if there is a filter for mac
         if (src not in only_mac) and (dst not in only_mac): # doesn't pass filter
+            return 
+    if len(only_bssid) > 0: # if there is a filter for bssid
+        if bssid not in only_bssid: # doesn't pass filter
             return 
 
     if frame.subtype in FRAMES_WITH_CAPABILITY:
@@ -333,10 +337,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
     parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
     parser.add_argument("--output", "-o", help="Name without extension of the output file", dest="output", required=True)
-    parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
+    parser.add_argument("--ignore-probe", "-i", help="Ignore probe responses", dest="no_probe", action="store_true")
     parser.add_argument("--format", "-f", help="Output file's format", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
-    parser.add_argument("--only-mac", "-m", help="Filter of mac.", dest="only_mac", nargs='+', action="store")
+    parser.add_argument("--only-mac", "-m", help="Filter for mac.", dest="only_mac", nargs='+', action="store")
+    parser.add_argument("--only-bssid", "-b", help="Filter for bssid.", dest="only_bssid", nargs='+', action="store")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
@@ -347,6 +352,8 @@ if __name__ == "__main__":
         verbose = True
     if args.only_mac:
         only_mac = args.only_mac
+    if args.only_bssid:
+        only_bssid = args.only_bssid
 
     try:
         raw_pcap = open(args.pcap, "rb")
