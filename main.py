@@ -11,6 +11,7 @@ G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
 verbose = False
+only_mac = []
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -199,6 +200,10 @@ def processManagementFrame(frame, ts):
     src = frame.mgmt.src.hex(":")
     dst = frame.mgmt.dst.hex(":")
     bssid  = frame.mgmt.bssid.hex(":")
+    
+    if len(only_mac) > 0: # if there is a filter
+        if (src not in only_mac) and (dst not in only_mac): # doesn't pass filter
+            return 
 
     if frame.subtype in FRAMES_WITH_CAPABILITY:
         ibss = frame.capability.ibss
@@ -331,6 +336,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
     parser.add_argument("--format", "-f", help="Output file's format", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
+    parser.add_argument("--only-mac", "-m", help="Filter of mac.", dest="only_mac", nargs='+', action="store")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
@@ -339,6 +345,8 @@ if __name__ == "__main__":
         ignore_probe_resp = True
     if args.verbose:
         verbose = True
+    if args.only_mac:
+        only_mac = args.only_mac
 
     try:
         raw_pcap = open(args.pcap, "rb")
