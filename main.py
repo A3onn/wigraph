@@ -327,12 +327,12 @@ def parseWithoutRadio(pcap):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
     parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
-    parser.add_argument("--output", "-o", help="Name without extension of the output file", required=True)
+    parser.add_argument("--output", "-o", help="Name without extension of the output file", dest="output", required=True)
     parser.add_argument("--no-probe-resp", "-r", help="Ignore probe responses", dest="no_probe", action="store_true")
-    parser.add_argument("--format", "-f", help="Output file's format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
+    parser.add_argument("--format", "-f", help="Output file's format", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
-    parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
+    parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
     if args.no_probe:
