@@ -335,30 +335,33 @@ if __name__ == "__main__":
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
+    if args.no_probe:
+        ignore_probe_resp = True
+    if args.verbose:
+        verbose = True
+
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
         print(f"{FAIL} No file found: {args.pcap}")
         exit(1)
-    
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
             pcap = dpkt.pcapng.Reader(raw_pcap)
+            if verbose:
+                print(f"{INFO} Loading {args.pcap} in memory")
             packets = pcap.readpkts()
             raw_pcap.close()
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
+            if verbose:
+                print(f"{INFO} Loading {args.pcap} in memory")
             packets = pcap.readpkts()
             raw_pcap.close()
     except:
         raw_pcap.close()
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
-
-    if args.no_probe:
-        ignore_probe_resp = True
-    if args.verbose:
-        verbose = True
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
