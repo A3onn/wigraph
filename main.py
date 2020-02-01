@@ -332,7 +332,7 @@ def parseWithoutRadio(pcap):
             c += 1
     return c
 
-def createImageGraph(name_without_extension, format, graph_type):
+def createImageGraph(name_without_extension, format, graph_type, keep_dot):
     try:
         print(f"{ACTION} Generating {name_without_extension}.{format}. It may take awhile.")
         cmd = [graph_type, f"{name_without_extension}.dot", "-Goverlap=scale", "-T", format, "-o", f"{name_without_extension}.{format}"] # graphviz command to execute
@@ -344,7 +344,7 @@ def createImageGraph(name_without_extension, format, graph_type):
             exit(1)
         else:
             print(f"{ACTION} {name_without_extension}.{format} generated!")
-            if not args.keep:
+            if not keep_dot:
                 if verbose:
                     print(f"{INFO} Calling: rm {name_without_extension}.dot")
                 call(["rm", name_without_extension + ".dot"], stdout=PIPE, stderr=PIPE)
@@ -360,7 +360,7 @@ def generateGraph(args):
     print(f"{ACTION} {args.output}.dot generated!")
 
     if args.format != "dot":
-        createImageGraph(args.output, args.format, args.graph)
+        createImageGraph(args.output, args.format, args.graph, args.keep_dot)
 
 def generateMultipleGraphs(args):
     if args.verbose:
@@ -369,13 +369,14 @@ def generateMultipleGraphs(args):
     nodes = list(G.nodes) # need a copy because nodes will be removed
     for node in nodes:
         if len(G.adj[node]) == 0: # if this node doesn't have any edge
-            G_null.add_node(node)
+            G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
     print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
+    generateNodesColors(G_null)
     nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
     print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
     if args.format != "dot":
-        createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph)
+        createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
 
     print(f"{ACTION} Generating all subgraphs...")
     for i,g in enumerate(list(nx.weakly_connected_components(G))):
@@ -385,7 +386,7 @@ def generateMultipleGraphs(args):
         nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
         print(f"{ACTION} {args.output}_{i}.dot generated!")
         if args.format != "dot":
-            createImageGraph(f"{args.output}_{i}", args.format, args.graph)
+            createImageGraph(f"{args.output}_{i}", args.format, args.graph, args.keep_dot)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
@@ -393,7 +394,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", "-o", help="Name without extension of the output file", dest="output", required=True)
     parser.add_argument("--ignore-probe", "-i", help="Ignore probe responses", dest="no_probe", action="store_true")
     parser.add_argument("--format", "-f", help="Output file's format", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
-    parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
+    parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep_dot", action="store_true")
     parser.add_argument("--only-mac", "-m", help="Filter for mac.", dest="only_mac", nargs='+', action="store")
     parser.add_argument("--only-bssid", "-b", help="Filter for bssid.", dest="only_bssid", nargs='+', action="store")
     parser.add_argument("--split-graph", "-s", help="Split graph into multiple files. This is useful when there is a lot of nodes.", dest="split_graph", action="store_true")
