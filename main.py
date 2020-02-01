@@ -152,11 +152,11 @@ def generateNodesColors(G):
     # this is used to avoid generating the label of each node each time there is a modification
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": AP_C}})
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": CLIENT_C}})
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": mac + "\n" + "Repeater", "style": "filled", "fillcolor": REPEATER_C}})
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\nRepeater", "style": "filled", "fillcolor": REPEATER_C}})
 
 def whatIs(mac):
     if mac in G.nodes:
@@ -347,7 +347,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
             if not keep_dot:
                 if verbose:
                     print(f"{INFO} Calling: rm {name_without_extension}.dot")
-                call(["rm", name_without_extension + ".dot"], stdout=PIPE, stderr=PIPE)
+                call(["rm", f"{name_without_extension}.dot"], stdout=PIPE, stderr=PIPE)
     except FileNotFoundError:
         print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
         exit(1)
@@ -356,9 +356,8 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.dot file...")
     generateNodesColors(G)
-    nx.nx_agraph.write_dot(G, args.output + ".dot")
+    nx.nx_agraph.write_dot(G, f"{args.output}.dot")
     print(f"{ACTION} {args.output}.dot generated!")
-
     if args.format != "dot":
         createImageGraph(args.output, args.format, args.graph, args.keep_dot)
 
@@ -366,9 +365,9 @@ def generateMultipleGraphs(args):
     if args.verbose:
         print(f"{INFO} Removing nodes without any edge...")
     G_null = nx.Graph() # nodes without edges, don't need a fancy graph
-    nodes = list(G.nodes) # need a copy because nodes will be removed
+    nodes = list(G.nodes) # need a copy because some nodes in the original graph will be removed
     for node in nodes:
-        if len(G.adj[node]) == 0: # if this node doesn't have any edge
+        if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0: # if this node doesn't have any edge
             G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
     print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
