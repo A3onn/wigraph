@@ -370,15 +370,16 @@ def generateMultipleGraphs(args):
         if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0: # if this node doesn't have any edge
             G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
-    print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
-    generateNodesColors(G_null)
-    nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
-    print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
-    if args.format != "dot":
-        createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
+    if not args.no_alone:
+        print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
+        generateNodesColors(G_null)
+        nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
+        print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
+        if args.format != "dot":
+            createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
 
     print(f"{ACTION} Generating all subgraphs...")
-    for i,g in enumerate(list(nx.weakly_connected_components(G))):
+    for i,g in enumerate(list(nx.weakly_connected_components(G))): # there is no alone nodes as they were removed
         sub = G.subgraph(g)
         generateNodesColors(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
@@ -388,14 +389,15 @@ def generateMultipleGraphs(args):
             createImageGraph(f"{args.output}_{i}", args.format, args.graph, args.keep_dot)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
-    parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
-    parser.add_argument("--output", "-o", help="Name without extension of the output file", dest="output", required=True)
-    parser.add_argument("--ignore-probe", "-i", help="Ignore probe responses", dest="no_probe", action="store_true")
-    parser.add_argument("--format", "-f", help="Output file's format", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
+    parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames.")
+    parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True)
+    parser.add_argument("--output", "-o", help="Name without extension of the output file.", dest="output", required=True)
+    parser.add_argument("--ignore-probe", "-i", help="Ignore probe responses.", dest="no_probe", action="store_true")
+    parser.add_argument("--format", "-f", help="Output file's format.", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep_dot", action="store_true")
     parser.add_argument("--only-mac", "-m", help="Filter for mac.", dest="only_mac", nargs='+', action="store")
     parser.add_argument("--only-bssid", "-b", help="Filter for bssid.", dest="only_bssid", nargs='+', action="store")
+    parser.add_argument("--no-alone-graph", "-a", help="Don't generate graph holding nodes without edges.", dest="no_alone", action="store_true")
     parser.add_argument("--split-graph", "-s", help="Split graph into multiple files. This is useful when there is a lot of nodes.", dest="split_graph", action="store_true")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
