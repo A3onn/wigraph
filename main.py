@@ -148,7 +148,7 @@ def toRates(raw):
     # supported, basics
     return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
 
-def generateNodesColors():
+def generateNodesColors(G):
     # this is used to avoid generating the label of each node each time there is a modification
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
@@ -335,7 +335,7 @@ def parseWithoutRadio(pcap):
 
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.dot file...")
-    generateNodesColors()
+    generateNodesColors(G)
     nx.nx_agraph.write_dot(G, args.output + ".dot")
     print(f"{ACTION} {args.output}.dot generated!")
 
@@ -358,6 +358,37 @@ def generateGraph(args):
         except FileNotFoundError:
             print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
             exit(1)
+
+def generateMultipleGraphs(args):
+    G_null = nx.Graph() # nodes without edges, don't need a fancy graph
+
+    nodes = list(G.nodes)
+    for node in nodes:
+        if len(G.adj[node]) == 0: # if this node doesn't have any edge
+            G_null.add_node(node)
+            G.remove_node(node)
+
+    for i,g in enumerate(list(nx.weakly_connected_components(G))):
+        sub = G.subgraph(g)
+        generateNodesColors(sub)
+        nx.nx_agraph.write_dot(sub, args.output + f"{i}.dot")
+        if args.format != "dot":
+            try:
+                print(f"{ACTION} Generating {args.output}{i}.{args.format}.")
+                cmd = [args.graph, args.output + f"{i}.dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + f"{i}." + args.format] # graphviz command to execute
+                r = call(cmd, stdout=PIPE, stderr=PIPE)
+                if r != 0:
+                    print(f"{FAIL} An error occured while generating the image! Left {args.output_name}{i}.dot intact. Quitting...")
+                    exit(1)
+                else:
+                    print(f"{ACTION} {args.output}{i}.{args.format} generated!")
+                    if not args.keep:
+                        if verbose:
+                            print(f"{INFO} Calling: rm {args.output}{i}.dot")
+                        call(["rm", args.output + f"{i}.dot"], stdout=PIPE, stderr=PIPE)
+            except FileNotFoundError:
+                print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+                exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
@@ -420,4 +451,6 @@ if __name__ == "__main__":
     raw_pcap.close()
 
     if not args.split_graph:
+        generateMultipleGraphs(args)
+    else:
         generateGraph(args)
