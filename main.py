@@ -332,22 +332,22 @@ def parseWithoutRadio(pcap):
             c += 1
     return c
 
-def createImageGraph(name, format, graph_type):
+def createImageGraph(name_without_extension, format, graph_type):
     try:
-        print(f"{ACTION} Generating {name}.{format}. It may take awhile.")
-        cmd = [graph_type, f"{name}.dot", "-Goverlap=scale", "-T", format, "-o", f"{name}.{format}"] # graphviz command to execute
+        print(f"{ACTION} Generating {name_without_extension}.{format}. It may take awhile.")
+        cmd = [graph_type, f"{name_without_extension}.dot", "-Goverlap=scale", "-T", format, "-o", f"{name_without_extension}.{format}"] # graphviz command to execute
         if verbose:
             print(f"{INFO} Calling: {' '.join(cmd)}")
         r = call(cmd, stdout=PIPE, stderr=PIPE)
         if r != 0:
-            print(f"{FAIL} An error occured while generating the image! Left {name}.dot intact.")
+            print(f"{FAIL} An error occured while generating the image! Left {name_without_extension}.dot intact.")
             exit(1)
         else:
-            print(f"{ACTION} {name}.{format} generated!")
+            print(f"{ACTION} {name_without_extension}.{format} generated!")
             if not args.keep:
                 if verbose:
-                    print(f"{INFO} Calling: rm {name}.dot")
-                call(["rm", name + ".dot"], stdout=PIPE, stderr=PIPE)
+                    print(f"{INFO} Calling: rm {name_without_extension}.dot")
+                call(["rm", name_without_extension + ".dot"], stdout=PIPE, stderr=PIPE)
     except FileNotFoundError:
         print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
         exit(1)
@@ -363,21 +363,29 @@ def generateGraph(args):
         createImageGraph(args.output, args.format, args.graph)
 
 def generateMultipleGraphs(args):
+    if args.verbose:
+        print(f"{INFO} Removing nodes without any edge...")
     G_null = nx.Graph() # nodes without edges, don't need a fancy graph
-
-    nodes = list(G.nodes)
+    nodes = list(G.nodes) # need a copy because nodes will be removed
     for node in nodes:
         if len(G.adj[node]) == 0: # if this node doesn't have any edge
             G_null.add_node(node)
             G.remove_node(node)
+    print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
+    nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
+    print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
+    if args.format != "dot":
+        createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph)
 
+    print(f"{ACTION} Generating all subgraphs...")
     for i,g in enumerate(list(nx.weakly_connected_components(G))):
         sub = G.subgraph(g)
         generateNodesColors(sub)
+        print(f"{ACTION} Generating {args.output}_{i}.dot file...")
         nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
+        print(f"{ACTION} {args.output}_{i}.dot generated!")
         if args.format != "dot":
             createImageGraph(f"{args.output}_{i}", args.format, args.graph)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
@@ -439,7 +447,7 @@ if __name__ == "__main__":
         exit(1)
     raw_pcap.close()
 
-    if not args.split_graph:
+    if args.split_graph:
         generateMultipleGraphs(args)
     else:
         generateGraph(args)
