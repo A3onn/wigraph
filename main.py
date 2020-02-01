@@ -333,6 +333,32 @@ def parseWithoutRadio(pcap):
     return c
 
 
+def generateGraph(args):
+    print(f"{ACTION} Generating {args.output}.dot file...")
+    generateNodesColors()
+    nx.nx_agraph.write_dot(G, args.output + ".dot")
+    print(f"{ACTION} {args.output}.dot generated!")
+
+    if args.format != "dot":
+        try:
+            print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
+            cmd = [args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format] # graphviz command to execute
+            if verbose:
+                print(f"{INFO} Calling: {' '.join(cmd)}")
+            r = call(cmd, stdout=PIPE, stderr=PIPE)
+            if r != 0:
+                print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
+                exit(1)
+            else:
+                print(f"{ACTION} {args.output}.{args.format} generated!")
+                if not args.keep:
+                    if verbose:
+                        print(f"{INFO} Calling: rm {args.output}.dot")
+                    call(["rm", args.output + ".dot"], stdout=PIPE, stderr=PIPE)
+        except FileNotFoundError:
+            print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+            exit(1)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
     parser.add_argument("--pcap", "-p", help="PCAP to parse", required=True)
@@ -342,6 +368,7 @@ if __name__ == "__main__":
     parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep", action="store_true")
     parser.add_argument("--only-mac", "-m", help="Filter for mac.", dest="only_mac", nargs='+', action="store")
     parser.add_argument("--only-bssid", "-b", help="Filter for bssid.", dest="only_bssid", nargs='+', action="store")
+    parser.add_argument("--split-graph", "-s", help="Split graph into multiple files. This is useful when there is a lot of nodes.", dest="split_graph", action="store_true")
     parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
     parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
     args = parser.parse_args()
@@ -390,31 +417,7 @@ if __name__ == "__main__":
         raw_pcap.close()
         print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
-
-
     raw_pcap.close()
 
-    print(f"{ACTION} Generating {args.output}.dot file...")
-    generateNodesColors()
-    nx.nx_agraph.write_dot(G, args.output + ".dot")
-    print(f"{ACTION} {args.output}.dot generated!")
-
-    if args.format != "dot":
-        try:
-            print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
-            cmd = [args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format] # graphviz command to execute
-            if verbose:
-                print(f"{INFO} Calling: {' '.join(cmd)}")
-            r = call(cmd, stdout=PIPE, stderr=PIPE)
-            if r != 0:
-                print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
-                exit(1)
-            else:
-                print(f"{ACTION} {args.output}.{args.format} generated!")
-                if not args.keep:
-                    if verbose:
-                        print(f"{INFO} Calling: rm {args.output}.dot")
-                    call(["rm", args.output + ".dot"], stdout=PIPE, stderr=PIPE)
-        except FileNotFoundError:
-            print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
-            exit(1)
+    if not args.split_graph:
+        generateGraph(args)
