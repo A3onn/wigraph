@@ -332,6 +332,26 @@ def parseWithoutRadio(pcap):
             c += 1
     return c
 
+def createImageGraph(name, format, graph_type):
+    try:
+        print(f"{ACTION} Generating {name}.{format}. It may take awhile.")
+        cmd = [graph_type, f"{name}.dot", "-Goverlap=scale", "-T", format, "-o", f"{name}.{format}"] # graphviz command to execute
+        if verbose:
+            print(f"{INFO} Calling: {' '.join(cmd)}")
+        r = call(cmd, stdout=PIPE, stderr=PIPE)
+        if r != 0:
+            print(f"{FAIL} An error occured while generating the image! Left {name}.dot intact.")
+            exit(1)
+        else:
+            print(f"{ACTION} {name}.{format} generated!")
+            if not args.keep:
+                if verbose:
+                    print(f"{INFO} Calling: rm {name}.dot")
+                call(["rm", name + ".dot"], stdout=PIPE, stderr=PIPE)
+    except FileNotFoundError:
+        print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+        exit(1)
+
 
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.dot file...")
@@ -340,24 +360,7 @@ def generateGraph(args):
     print(f"{ACTION} {args.output}.dot generated!")
 
     if args.format != "dot":
-        try:
-            print(f"{ACTION} Generating {args.output}.{args.format}. It may take awhile.")
-            cmd = [args.graph, args.output + ".dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + "." + args.format] # graphviz command to execute
-            if verbose:
-                print(f"{INFO} Calling: {' '.join(cmd)}")
-            r = call(cmd, stdout=PIPE, stderr=PIPE)
-            if r != 0:
-                print(f"{FAIL} An error occured while generating the image! Left {args.output_name}.dot intact.")
-                exit(1)
-            else:
-                print(f"{ACTION} {args.output}.{args.format} generated!")
-                if not args.keep:
-                    if verbose:
-                        print(f"{INFO} Calling: rm {args.output}.dot")
-                    call(["rm", args.output + ".dot"], stdout=PIPE, stderr=PIPE)
-        except FileNotFoundError:
-            print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
-            exit(1)
+        createImageGraph(args.output, args.format, args.graph)
 
 def generateMultipleGraphs(args):
     G_null = nx.Graph() # nodes without edges, don't need a fancy graph
@@ -371,24 +374,10 @@ def generateMultipleGraphs(args):
     for i,g in enumerate(list(nx.weakly_connected_components(G))):
         sub = G.subgraph(g)
         generateNodesColors(sub)
-        nx.nx_agraph.write_dot(sub, args.output + f"{i}.dot")
+        nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
         if args.format != "dot":
-            try:
-                print(f"{ACTION} Generating {args.output}{i}.{args.format}.")
-                cmd = [args.graph, args.output + f"{i}.dot", "-Goverlap=scale", "-T", args.format, "-o", args.output + f"{i}." + args.format] # graphviz command to execute
-                r = call(cmd, stdout=PIPE, stderr=PIPE)
-                if r != 0:
-                    print(f"{FAIL} An error occured while generating the image! Left {args.output_name}{i}.dot intact. Quitting...")
-                    exit(1)
-                else:
-                    print(f"{ACTION} {args.output}{i}.{args.format} generated!")
-                    if not args.keep:
-                        if verbose:
-                            print(f"{INFO} Calling: rm {args.output}{i}.dot")
-                        call(["rm", args.output + f"{i}.dot"], stdout=PIPE, stderr=PIPE)
-            except FileNotFoundError:
-                print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
-                exit(1)
+            createImageGraph(f"{args.output}_{i}", args.format, args.graph)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames")
