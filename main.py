@@ -13,6 +13,8 @@ ignore_probe_resp = False
 verbose = False
 only_mac = tuple()
 only_bssid = tuple()
+# client probe, but so do AP... so this list holds ts, src and ssid and they will be handled after parsing
+delayed_probe_req = []
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -50,7 +52,8 @@ DATA_INTER_DS = "#A0A0A0"
 
 # CLASSES
 class AP:
-    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[]):
+    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[], probe=""):
+        self.probes = [probe] if probe else []
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
@@ -70,7 +73,11 @@ class AP:
         if self.ch != -1:
             ret += f"channel: {self.ch}\n"
 
-        if len(self.rates) != 0: # if we knwo its rates
+        if self.probes:
+            probed = ",".join(self.probes)
+            ret += f"probed: {probed}\n"
+        
+        if len(self.rates) != 0: # if we know its rates
             supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
             basic_rates = ",".join(map(str, self.rates[1])) # same here
             ret += f"supported rates: {supported_rates}\nbasic rates: {basic_rates}\n"
@@ -99,6 +106,10 @@ class AP:
         if not isinstance(other, AP):
             raise TypeError()
 
+        if other.probes:
+            if not other.probes[0] in self.probes:
+                self.probes.append(other.probes[0])
+
         if not self.bssid and other.bssid:
             self.bssid = other.bssid
 
@@ -116,7 +127,7 @@ class AP:
 class Client:
     def __init__(self, ts, probe=""):
         # might add more attributes later
-        self.probes = [probe if probe else "<broadcast>"]
+        self.probes = [probe] if probe != 0 else []
         self.first_seen = ts
         self.last_seen = ts
         self.data_frames = 0
@@ -126,6 +137,7 @@ class Client:
         if self.probes:
             probed = ",".join(self.probes)
             ret += f"probed: {probed}\n"
+
         if self.data_frames > 0:
             ret += f"# of data frame: {self.data_frames}\n"
         ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
@@ -218,7 +230,7 @@ def processManagementFrame(frame, ts):
         if whatIs(src) == AP_T: # check if src hasn't been put as a repeater and add a beacon manually
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
-        addClient(src, Client(ts, probe=frame.ssid.data.decode("utf-8", "ignore")))
+        delayed_probe_req.append((ts, src, frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
@@ -317,6 +329,15 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
+    for probe in delayed_probe_req:
+        src = whatIs(probe[1])
+        ssid = probe[2]
+        ts = probe[0]
+        if src == AP_T:
+            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
+        elif src == CLIENT_T:
+            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+
     return c
 
 def parseWithoutRadio(pcap):
@@ -330,6 +351,16 @@ def parseWithoutRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
+    
+    for probe in delayed_probe_req:
+        src = whatIs(probe[1])
+        ts = probe[0]
+        ssid = probe[2]
+
+        if src == AP_T:
+            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
+        elif src == CLIENT_T:
+            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
     return c
 
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
