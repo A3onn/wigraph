@@ -18,7 +18,12 @@ only_bssid = tuple()
 
 # cannot get any idea who's sending and who's receiving, so we have to wait
 # the parsing to finish to add the edges
-delayed_frames = {"probe_req": [], "deauth": [], "disassoc": [], "action": []}
+delayed_frames = {
+        "probe_req": [],
+        "deauth": [],
+        "disassoc": [],
+        "action": [],
+        "data": []}
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -51,6 +56,7 @@ DISASSOC_FROM_CLIENT = "#32CD32"  # lime green
 DISASSOC_FROM_AP = "#007800"
 ACTION_FROM_AP = "#556B2F"  # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
+DATA = "#000000"
 
 
 # CLASSES
@@ -316,6 +322,11 @@ def processManagementFrame(frame, ts):
         delayed_frames["action"].append((ts, src, dst))
 
 
+def processDataFrame(frame, ts):
+    src = frame.data_frame.src.hex(":")
+    dst = frame.data_frame.dst.hex(":")
+    delayed_frames["data"].append((ts, src, dst))
+
 def parseDelayedFrames():
     if verbose:
         print(f"{INFO} Handling delayed probe requests.")
@@ -362,6 +373,14 @@ def parseDelayedFrames():
                 addEdge(probe[1], probe[2], color=ACTION_FROM_AP)
             else:
                 addEdge(probe[1], probe[2], color=ACTION_FROM_CLIENT)
+    if verbose:
+        print(f"{INFO} Handling delayed data frames.")
+    for probe in delayed_frames["data"]:
+        src = whatIs(probe[1])
+        dst = whatIs(probe[2])
+        ts = probe[0]
+        if src != UNKNOWN_T and dst != UNKNOWN_T:
+            addEdge(probe[1], probe[2], color=DATA)
 
 
 def parseWithRadio(pcap):
@@ -379,6 +398,9 @@ def parseWithRadio(pcap):
 
         if dot11.type == MGMT_TYPE:  # management frames
             processManagementFrame(dot11, ts)
+            c += 1
+        elif dot11.type == DATA_TYPE:
+            processDataFrame(dot11, ts)
             c += 1
 
     if verbose:
@@ -399,7 +421,9 @@ def parseWithoutRadio(pcap):
         if dot11.type == MGMT_TYPE:  # management frames
             processManagementFrame(dot11, ts)
             c += 1
-
+        elif dot11.type == DATA_TYPE:
+            processDataFrale(dot11, ts)
+            c += 1
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
     parseDelayedFrames()
