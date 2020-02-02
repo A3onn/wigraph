@@ -14,9 +14,9 @@ verbose = False
 only_mac = tuple()
 only_bssid = tuple()
 
-# client probe, but so do AP... so this list holds ts, src and ssid and they will be handled after parsing
-# as they are important, cannot do like in deauth, disassoc and action
-delayed_probe_req = []
+# cannot get any idea who's sending and who's receiving, so we have to wait the parsing
+# to finish to add the edges
+delayed_frames = {"probe_req" : [], "deauth" : [], "disassoc" : [], "action" : []}
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -232,7 +232,7 @@ def processManagementFrame(frame, ts):
         if whatIs(src) == AP_T: # check if src hasn't been put as a repeater and add a beacon manually
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
-        delayed_probe_req.append((ts, src, frame.ssid.data.decode("utf-8", "ignore")))
+        delayed_frames["probe_req"].append((ts, src, frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
                 rates=toRates(frame.rate.data)))
@@ -274,47 +274,57 @@ def processManagementFrame(frame, ts):
             addEdge(src, dst, color=AUTH_RESP)
 
     elif frame.subtype == M_DEAUTH:
-        who = whatIs(src)
-        if who == AP_T:
-            addAP(src, AP(ts, bssid=bssid))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addClient(dst, Client(ts))
-            
-                addEdge(src, dst, color=DEAUTH_FROM_AP)
-        elif who == CLIENT_T:
-            addClient(src, Client(ts))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addAP(dst, AP(ts, bssid=bssid))
-            
-                addEdge(src, dst, color=DEAUTH_FROM_CLIENT)
+        delayed_frames["deauth"].append((ts, src, dst))
     elif frame.subtype == M_DISASSOC:
-        who = whatIs(src)
-        if who == AP_T:
-            addAP(src, AP(ts, bssid=bssid))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addClient(dst, Client(ts))
-            
-                addEdge(src, dst, color=DISASSOC_FROM_AP)
-        elif who == CLIENT_T:
-            addClient(src, Client(ts))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addAP(dst, AP(ts, bssid=bssid))
-                
-                addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
+        delayed_frames["disassoc"].append((ts, src, dst))
     elif frame.subtype == M_ACTION:
-        who = whatIs(src)
-        if who == AP_T:
-            addAP(src, AP(ts, bssid=bssid))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addClient(dst, Client(ts))
-            
-                addEdge(src, dst, color=ACTION_FROM_AP)
-        elif who == CLIENT_T:
-            addClient(src, Client(ts))
-            if dst != "ff:ff:ff:ff:ff:ff":
-                addAP(dst, AP(ts, bssid=bssid))
-            
-                addEdge(src, dst, color=ACTION_FROM_CLIENT)
+        delayed_frames["action"].append((ts, src, dst))
+
+def handlingDelayedFrames():
+    if verbose:
+        print(f"{INFO} Handling delayed probe requests.")
+    for probe in delayed_frames["probe_req"]:
+        src = whatIs(probe[1])
+        ssid = probe[2]
+        ts = probe[0]
+        if src == AP_T:
+            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
+        elif src == CLIENT_T:
+            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+    if verbose:
+        print(f"{INFO} Handling delayed deauthentification frames.")
+    for probe in delayed_frames["deauth"]:
+        src = whatIs(probe[1])
+        dst = whatIs(probe[2])
+        ts = probe[0]
+        if src != UNKNOWN_T and dst != UNKNOWN_T:
+            if src == AP_T:
+                addEdge(probe[1], probe[2], color=DEAUTH_FROM_AP)
+            else:
+                addEdge(probe[1], probe[2], color=DEAUTH_FROM_CLIENT)
+    if verbose:
+        print(f"{INFO} Handling delayed disassociation frames.")
+    for probe in delayed_frames["disassoc"]:
+        src = whatIs(probe[1])
+        dst = whatIs(probe[2])
+        ts = probe[0]
+        if src != UNKNOWN_T and dst != UNKNOWN_T:
+            if src == AP_T:
+                addEdge(probe[1], probe[2], color=DISASSOC_FROM_AP)
+            else:
+                addEdge(probe[1], probe[2], color=DISASSOC_FROM_CLIENT)
+    if verbose:
+        print(f"{INFO} Handling delayed action frames.")
+    for probe in delayed_frames["action"]:
+        src = whatIs(probe[1])
+        dst = whatIs(probe[2])
+        ts = probe[0]
+        if src != UNKNOWN_T and dst != UNKNOWN_T:
+            if src == AP_T:
+                addEdge(probe[1], probe[2], color=ACTION_FROM_AP)
+            else:
+                addEdge(probe[1], probe[2], color=ACTION_FROM_CLIENT)
+
 
 def parseWithRadio(pcap):
     c = 0
@@ -331,17 +341,8 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
-
-    if verbose:
-        print(f"{INFO} Handling delayed probe requests")
-    for probe in delayed_probe_req:
-        src = whatIs(probe[1])
-        ssid = probe[2]
-        ts = probe[0]
-        if src == AP_T:
-            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
-        elif src == CLIENT_T:
-            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+    
+    handlingDelayedFrames()
 
     return c
 
@@ -359,14 +360,7 @@ def parseWithoutRadio(pcap):
 
     if verbose:
         print(f"{INFO} Handling delayed probe requests")
-    for probe in delayed_probe_req:
-        src = whatIs(probe[1])
-        ssid = probe[2]
-        ts = probe[0]
-        if src == AP_T:
-            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
-        elif src == CLIENT_T:
-            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+    handlingDelayedFrames()
     
     return c
 
