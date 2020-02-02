@@ -252,6 +252,9 @@ def processManagementFrame(frame, ts):
             # doesn't pass filter
             return
 
+    if frame.subtype in FRAMES_WITH_CAPABILITY:
+        ibss = frame.capability.ibss
+
     if frame.subtype == M_BEACON:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode(
             "utf-8", "ignore"), ch=frame.ds.ch,
@@ -407,8 +410,7 @@ def parseWithoutRadio(pcap):
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
     try:
         print(
-            f"{ACTION} Generating {name_without_extension}.{format}. \
-                    It may take awhile.")
+            f"{ACTION} Generating {name_without_extension}.{format}. It may take awhile.")
         cmd = [  # graphviz command to execute
             graph_type,
             f"{name_without_extension}.dot",
@@ -521,7 +523,7 @@ if __name__ == "__main__":
         help="Don't generate graph holding nodes without edges.",
         dest="no_alone", action="store_true")
     parser.add_argument(
-        "--split-graph", "-s", help="Split graph into multiple
+        "--split-graph", "-s", help="Split graph into multiple \
         files. This is useful when there is a lot of nodes.",
         dest="split_graph", action="store_true")
     parser.add_argument(
