@@ -13,7 +13,9 @@ ignore_probe_resp = False
 verbose = False
 only_mac = tuple()
 only_bssid = tuple()
+
 # client probe, but so do AP... so this list holds ts, src and ssid and they will be handled after parsing
+# as they are important, cannot do like in deauth, disassoc and action
 delayed_probe_req = []
 
 # colors
@@ -331,6 +333,7 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
+
     if verbose:
         print(f"{INFO} Handling delayed probe requests")
     for probe in delayed_probe_req:
@@ -355,6 +358,7 @@ def parseWithoutRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
+
     if verbose:
         print(f"{INFO} Handling delayed probe requests")
     for probe in delayed_probe_req:
@@ -406,7 +410,7 @@ def generateMultipleGraphs(args):
         if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0: # if this node doesn't have any edge
             G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
-    if not args.no_alone:
+    if not args.no_alone: # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
             print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
             generateNodesColors(G_null)
@@ -415,7 +419,7 @@ def generateMultipleGraphs(args):
             if args.format != "dot":
                 createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
         else:
-            print(f"{ACTION} All nodes have an edge at least, don't generate {args.output}.{args.format}.")
+            print(f"{ACTION} All nodes have an edge at least, don't generate {args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
     for i,g in enumerate(list(nx.weakly_connected_components(G))): # there is no alone nodes as they were removed
