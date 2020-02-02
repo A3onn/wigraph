@@ -275,7 +275,7 @@ def processManagementFrame(frame, ts):
     elif frame.subtype == M_ACTION:
         delayed_frames["action"].append((ts, src, dst))
 
-def handlingDelayedFrames():
+def parseDelayedFrames():
     if verbose:
         print(f"{INFO} Handling delayed probe requests.")
     for probe in delayed_frames["probe_req"]:
@@ -327,7 +327,7 @@ def parseWithRadio(pcap):
         try:
             radio_tap = dpkt.radiotap.Radiotap(buf)
             dot11 = radio_tap.data
-        except Exception as e:
+        except Exception:
             continue
 
         if not isinstance(dot11, IEEE80211): # check if the frame is a 802.11 packet
@@ -337,7 +337,9 @@ def parseWithRadio(pcap):
             processManagementFrame(dot11, ts)
             c += 1
     
-    handlingDelayedFrames()
+    if verbose:
+        print(f"{INFO} Parsing delayed probe requests...")
+    parseDelayedFrames()
 
     return c
 
@@ -346,7 +348,7 @@ def parseWithoutRadio(pcap):
     for ts, buf in pcap:
         try:
             dot11 = IEEE80211(buf)
-        except Exception as e:
+        except Exception:
             continue
 
         if dot11.type == MGMT_TYPE: # management frames
@@ -354,8 +356,8 @@ def parseWithoutRadio(pcap):
             c += 1
 
     if verbose:
-        print(f"{INFO} Handling delayed probe requests")
-    handlingDelayedFrames()
+        print(f"{INFO} Parsing delayed probe requests...")
+    parseDelayedFrames()
     
     return c
 
