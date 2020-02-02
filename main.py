@@ -407,12 +407,15 @@ def generateMultipleGraphs(args):
             G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
     if not args.no_alone:
-        print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
-        generateNodesColors(G_null)
-        nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
-        print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
-        if args.format != "dot":
-            createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
+        if len(G_null.nodes) > 0:
+            print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
+            generateNodesColors(G_null)
+            nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
+            print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
+            if args.format != "dot":
+                createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
+        else:
+            print(f"{ACTION} All nodes have an edge at least, don't generate {args.output}.{args.format}.")
 
     print(f"{ACTION} Generating all subgraphs...")
     for i,g in enumerate(list(nx.weakly_connected_components(G))): # there is no alone nodes as they were removed
@@ -485,6 +488,7 @@ if __name__ == "__main__":
         exit(1)
     raw_pcap.close()
 
+    # generate dot file and image file
     if args.split_graph:
         generateMultipleGraphs(args)
     else:
