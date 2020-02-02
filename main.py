@@ -49,8 +49,6 @@ DISASSOC_FROM_CLIENT = "#32CD32" # lime green
 DISASSOC_FROM_AP = "#007800"
 ACTION_FROM_AP = "#556B2F" # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
-DATA = "#000000"
-DATA_INTER_DS = "#A0A0A0"
 
 # CLASSES
 class AP:
@@ -222,9 +220,6 @@ def processManagementFrame(frame, ts):
     if len(only_bssid) > 0: # if there is a filter for bssid
         if bssid not in only_bssid: # doesn't pass filter
             return 
-
-    if frame.subtype in FRAMES_WITH_CAPABILITY:
-        ibss = frame.capability.ibss
 
     if frame.subtype == M_BEACON:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
