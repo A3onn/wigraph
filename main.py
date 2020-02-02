@@ -22,14 +22,13 @@ FAIL = "\033[91m[X]\033[0m"
 # types of node
 AP_T = 0
 CLIENT_T = 1
-REPEATER_T = 2
 UNKNOWN_T = 3
 
 # COLORS
 # nodes
 AP_C = "#FF7777"
 CLIENT_C = "#7777FF"
-REPEATER_C = "#77FF77"
+UNKNOWN_C = "#77FF77"
 
 # edges
 ASSOC_REQ = "#0000FF" # blue
@@ -119,15 +118,12 @@ class Client:
         self.probes = [probe if probe else "<broadcast>"]
         self.first_seen = ts
         self.last_seen = ts
-        self.data_frames = 0
 
     def __str__(self):
         ret = ""
         if self.probes:
             probed = ",".join(self.probes)
             ret += f"probed: {probed}\n"
-        if self.data_frames > 0:
-            ret += f"# of data frame: {self.data_frames}\n"
         ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
@@ -143,6 +139,61 @@ class Client:
         # could be other.last_seen, it's the same as 'other' is "disposable"
         # and other.first_seen == other.last_seen
 
+
+class Unknown:
+    def __init__(self, probe="", bssid="", ssid="", ch=-1, rates=[]):
+        # same attributes from Client and AP
+        self.probes = [probe if probe else "<broadcast>"]
+        self.bssid = bssid
+        self.ssid = ssid
+        self.ch = ch
+        self.rates = rates
+
+    def __str__(self):
+        ret = ""
+        
+        if self.probes:
+            probed = ",".join(self.probes)
+            ret += f"probed: {probed}\n"
+
+        if self.bssid:
+            ret += f"bssid: {self.bssid}\n"
+
+        if self.ssid:
+            ret += f"ssid: {self.ssid}\n"
+
+        if self.ch != -1:
+            ret += f"channel: {self.ch}\n"
+
+        if len(self.rates) != 0: # if we knwo its rates
+            supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
+            basic_rates = ",".join(map(str, self.rates[1])) # same here
+            ret += f"supported rates: {supported_rates}\nbasic rates: {basic_rates}\n"
+
+        return ret
+
+    def __mod__(self, other):
+        if isinstance(other, Client):
+            if other.probes:
+                if not other.probes[0] in self.probes:
+                    self.probes.append(other.probes[0])
+            self.last_seen = other.first_seen
+
+        if isinstance(other, AP):
+            if not self.bssid and other.bssid:
+                self.bssid = other.bssid
+
+            if not self.ssid and other.ssid:
+                self.ssid = other.ssid
+
+            if self.ch == -1 and other.ch != -1:
+                self.ch = other.ch
+
+            if not self.rates and other.rates:
+                self.rates = other.rates
+
+            self.last_seen = other.first_seen # could be other.last_seen, as other is "disposable"
+
 # FUNCTIONS
 def toRates(raw):
     # supported, basics
@@ -155,8 +206,8 @@ def generateNodesColors(G):
             nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": CLIENT_C}})
-        elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\nRepeater", "style": "filled", "fillcolor": REPEATER_C}})
+        elif G.nodes[mac]["type"] == UNKNOWN_T:
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": UNKNOWN_C}})
 
 def whatIs(mac):
     if mac in G.nodes:
@@ -173,14 +224,13 @@ def addAP(mac, ap):
             print(f"{INFO} Added new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
     else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
-            return
         try:
             G.nodes[mac]["value"] % ap
-        except TypeError:
+        except TypeError: # if it was an Client
             if verbose:
-                print(f"{INFO} Marked {mac} as a repeater")
-            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
+                print(f"{INFO} Marked {mac} as unknown")
+            nx.set_node_attributes(G, {mac:{"type": UNKNOWN_T, "value": Unknown()}}) # change to Unknown
+            G.nodes[mac]["value"] % ap # update its attributes
 
 def addClient(mac, client):
     if not mac in G.nodes: # if first time seeing client
@@ -188,14 +238,13 @@ def addClient(mac, client):
             print(f"{INFO} Added new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
     else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
-            return
         try:
             G.nodes[mac]["value"] % client
-        except TypeError:
+        except TypeError: # if it was an AP
             if verbose:
-                print(f"{INFO} Marked {mac} as a repeater")
-            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
+                print(f"{INFO} Marked {mac} as a unknown")
+            nx.set_node_attributes(G, {mac:{"type": UNKNOWN_T, "value": Unknown()}}) # change to Unknown
+            G.nodes[mac]["value"] % client # update its attributes
 
 def processManagementFrame(frame, ts):
     src = frame.mgmt.src.hex(":")
