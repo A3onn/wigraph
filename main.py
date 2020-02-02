@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from dpkt.ieee80211 import *
 from subprocess import call, PIPE
-import dpkt, argparse, time
+import dpkt
+import argparse
+import time
 import networkx as nx
 
 # CONSTANTS
@@ -14,9 +16,9 @@ verbose = False
 only_mac = tuple()
 only_bssid = tuple()
 
-# cannot get any idea who's sending and who's receiving, so we have to wait the parsing
-# to finish to add the edges
-delayed_frames = {"probe_req" : [], "deauth" : [], "disassoc" : [], "action" : []}
+# cannot get any idea who's sending and who's receiving, so we have to wait
+# the parsing to finish to add the edges
+delayed_frames = {"probe_req": [], "deauth": [], "disassoc": [], "action": []}
 
 # colors
 ACTION = "\033[92m[o]\033[0m"
@@ -36,19 +38,20 @@ CLIENT_C = "#7777FF"
 REPEATER_C = "#77FF77"
 
 # edges
-ASSOC_REQ = "#0000FF" # blue
+ASSOC_REQ = "#0000FF"  # blue
 ASSOC_RESP = "#0000AA"
-AUTH_REQ = "#FF8C00" # dark orange
+AUTH_REQ = "#FF8C00"  # dark orange
 AUTH_RESP = "#AA4700"
-REASSOC_REQ = "#FF69B4" # hot pink
+REASSOC_REQ = "#FF69B4"  # hot pink
 REASSOC_RESP = "#AA2560"
 PROBE_RESP = "#123456"
-DEAUTH_FROM_AP = "#800000" # maroon
+DEAUTH_FROM_AP = "#800000"  # maroon
 DEAUTH_FROM_CLIENT = "#400000"
-DISASSOC_FROM_CLIENT = "#32CD32" # lime green
+DISASSOC_FROM_CLIENT = "#32CD32"  # lime green
 DISASSOC_FROM_AP = "#007800"
-ACTION_FROM_AP = "#556B2F" # dark olive green
+ACTION_FROM_AP = "#556B2F"  # dark olive green
 ACTION_FROM_CLIENT = "#11460A"
+
 
 # CLASSES
 class AP:
@@ -76,13 +79,18 @@ class AP:
         if self.probes:
             probed = ",".join(self.probes)
             ret += f"probed: {probed}\n"
-        
-        if len(self.rates) != 0: # if we know its rates
-            supported_rates = ",".join(map(str, self.rates[0])) # [int] -> [str] with map
-            basic_rates = ",".join(map(str, self.rates[1])) # same here
-            ret += f"supported rates: {supported_rates}\nbasic rates: {basic_rates}\n"
 
-        ret += f"# of beacons: {self.beacons}\nFirst seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
+        if len(self.rates) != 0:  # if we know its rates
+            # [int] -> [str] with map
+            supported_rates = ",".join(map(str, self.rates[0]))
+            basic_rates = ",".join(map(str, self.rates[1]))
+
+            ret += f"supported rates: {supported_rates}\n \
+                    basic rates: {basic_rates}\n"
+
+        ret += f"# of beacons: {self.beacons}\n \
+            First seen: {time.asctime(time.localtime(self.first_seen))}\n \
+            Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
     def __mod__(self, other):
@@ -96,18 +104,19 @@ class AP:
         ...
         a % AP(ts, ch=5) # This will change the ch attribute to 5
 
-        Mind you that Ap(ts, ch=5) is "disposable", it is only used when modifying
-        another existing AP instance.
+        Mind you that Ap(ts, ch=5) is "disposable", it is only used when
+        modifying another existing AP instance.
 
-        I use this weird method because it is simple to implement and relatively efficient.
-        You can see it as a replacement for dict and spaghetti code to change values in these dicts
+        I use this weird method because it is simple to implement and
+        relatively efficient. You can see it as a replacement for dict
+        and spaghetti code to change values in these dicts
         """
 
         if not isinstance(other, AP):
             raise TypeError()
 
         if other.probes:
-            if not other.probes[0] in self.probes:
+            if other.probes[0] not in self.probes:
                 self.probes.append(other.probes[0])
 
         if not self.bssid and other.bssid:
@@ -122,7 +131,9 @@ class AP:
         if not self.rates and other.rates:
             self.rates = other.rates
 
-        self.last_seen = other.first_seen # could be other.last_seen, as other is "disposable"
+        self.last_seen = other.first_seen
+        # could be other.last_seen, as other is "disposable"
+
 
 class Client:
     def __init__(self, ts, probe=""):
@@ -140,113 +151,139 @@ class Client:
 
         if self.data_frames > 0:
             ret += f"# of data frame: {self.data_frames}\n"
-        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\nLast seen: {time.asctime(time.localtime(self.last_seen))}"
+        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n \
+                Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
     def __mod__(self, other):
         if not isinstance(other, Client):
             raise TypeError()
-        
+
         if other.probes:
-            if not other.probes[0] in self.probes:
+            if other.probes[0] not in self.probes:
                 self.probes.append(other.probes[0])
-        
+
         self.last_seen = other.first_seen
         # could be other.last_seen, it's the same as 'other' is "disposable"
         # and other.first_seen == other.last_seen
 
+
 # FUNCTIONS
 def toRates(raw):
     # supported, basics
-    return [500*x for x in raw if x > 127],[500*x for x in raw if x > 127]
+    return [500 * x for x in raw if x > 127], [500 * x for x in raw if x > 127]
+
 
 def generateNodesColors(G):
-    # this is used to avoid generating the label of each node each time there is a modification
+    # this is used to avoid generating the label of each node each time there
+    # is a modification
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": AP_C}})
+            nx.set_node_attributes(
+                G, {mac: {"label": f"{mac}\n \
+                    {str(G.nodes[mac]['value'])}", "style": "filled",
+                    "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n{str(G.nodes[mac]['value'])}", "style": "filled", "fillcolor": CLIENT_C}})
+            nx.set_node_attributes(
+                G, {mac: {"label": f"{mac}\n \
+                    {str(G.nodes[mac]['value'])}",
+                    "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\nRepeater", "style": "filled", "fillcolor": REPEATER_C}})
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n \
+                    Repeater", "style": "filled", "fillcolor": REPEATER_C}})
+
 
 def whatIs(mac):
     if mac in G.nodes:
         return G.nodes[mac]["type"]
     return UNKNOWN_T
 
+
 def addEdge(src, dst, color, style="solid"):
     if not G.has_edge(src, dst, key=color):
         G.add_edge(src, dst, color=color, style=style, key=color)
 
+
 def addAP(mac, ap):
-    if not mac in G.nodes: # if first time seeing ap
+    if mac not in G.nodes:  # if first time seeing ap
         if verbose:
             print(f"{INFO} Added new AP: {mac}")
         G.add_node(mac, type=AP_T, value=ap)
-    else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
+    else:  # if not, updating its attributes
+        if G.nodes[mac]["type"] == REPEATER_T:
+            # check if it's already been marked as a repeater
             return
         try:
             G.nodes[mac]["value"] % ap
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
-            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
+            nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
+
 
 def addClient(mac, client):
-    if not mac in G.nodes: # if first time seeing client
+    if mac not in G.nodes:  # if first time seeing client
         if verbose:
             print(f"{INFO} Added new Client: {mac}")
         G.add_node(mac, type=CLIENT_T, value=client)
-    else: # if not, updating its attributes
-        if G.nodes[mac]["type"] == REPEATER_T: # check if it's already been marked as a repeater
+    else:  # if not, updating its attributes
+        if G.nodes[mac]["type"] == REPEATER_T:
+            # check if it's already been marked as a repeater
             return
         try:
             G.nodes[mac]["value"] % client
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
-            nx.set_node_attributes(G, {mac:{'type': REPEATER_T}})
+            nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
+
 
 def processManagementFrame(frame, ts):
     src = frame.mgmt.src.hex(":")
     dst = frame.mgmt.dst.hex(":")
-    bssid  = frame.mgmt.bssid.hex(":")
-    
-    if len(only_mac) > 0: # if there is a filter for mac
-        if (src not in only_mac) and (dst not in only_mac): # doesn't pass filter
-            return 
-    if len(only_bssid) > 0: # if there is a filter for bssid
-        if bssid not in only_bssid: # doesn't pass filter
-            return 
+    bssid = frame.mgmt.bssid.hex(":")
+
+    if len(only_mac) > 0:  # if there is a filter for mac
+        if (src not in only_mac) and (dst not in only_mac):
+            # doesn't pass filter
+            return
+    if len(only_bssid) > 0:  # if there is a filter for bssid
+        if bssid not in only_bssid:
+            # doesn't pass filter
+            return
 
     if frame.subtype == M_BEACON:
-        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
+        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode(
+            "utf-8", "ignore"), ch=frame.ds.ch,
             rates=toRates(frame.rate.data)))
-        if whatIs(src) == AP_T: # check if src hasn't been put as a repeater and add a beacon manually
+        if whatIs(src) == AP_T:
+            # check if src hasn't been put as a repeater and
+            # add a beacon manually
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
-        delayed_frames["probe_req"].append((ts, src, frame.ssid.data.decode("utf-8", "ignore")))
+        delayed_frames["probe_req"].append(
+            (ts, src, frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
-        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"), ch=frame.ds.ch,\
-                rates=toRates(frame.rate.data)))
+        addAP(src, AP(ts, bssid=bssid,
+                      ssid=frame.ssid.data.decode("utf-8", "ignore"),
+                      ch=frame.ds.ch, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts, frame.ssid.data.decode("utf-8", "ignore")))
 
         addEdge(src, dst, color=PROBE_RESP, style="dotted")
     elif frame.subtype == M_ASSOC_REQ:
-        addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"), bssid=bssid, rates=toRates(frame.rate.data)))
+        addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"),
+                      bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
         addEdge(src, dst, color=ASSOC_REQ, style="box" if ibss else "solid")
     elif frame.subtype == M_ASSOC_RESP:
         addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client(ts))
-        
+
         addEdge(src, dst, color=ASSOC_RESP, style="box" if ibss else "solid")
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
-        if current_ap != bssid: # meaning the client wants to reconnect
+        if current_ap != bssid:  # meaning the client wants to reconnect
             addAP(dst, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
@@ -257,12 +294,12 @@ def processManagementFrame(frame, ts):
 
         addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
-        if frame.auth.auth_seq == 256: # CLIENT -> AP
+        if frame.auth.auth_seq == 256:  # CLIENT -> AP
             addAP(dst, AP(ts, bssid=bssid))
             addClient(src, Client(ts))
 
             addEdge(src, dst, color=AUTH_REQ)
-        elif frame.auth.auth_seq == 512: # AP -> CLIENT
+        elif frame.auth.auth_seq == 512:  # AP -> CLIENT
             addAP(src, AP(ts, bssid=bssid))
             addClient(dst, Client(ts))
 
@@ -275,6 +312,7 @@ def processManagementFrame(frame, ts):
     elif frame.subtype == M_ACTION:
         delayed_frames["action"].append((ts, src, dst))
 
+
 def parseDelayedFrames():
     if verbose:
         print(f"{INFO} Handling delayed probe requests.")
@@ -285,7 +323,9 @@ def parseDelayedFrames():
         if src == AP_T:
             addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
         elif src == CLIENT_T:
-            addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+            addClient(
+                probe[1], Client(
+                    ts, probe=ssid if ssid else "<broadcast>"))
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
@@ -330,18 +370,20 @@ def parseWithRadio(pcap):
         except Exception:
             continue
 
-        if not isinstance(dot11, IEEE80211): # check if the frame is a 802.11 packet
+        if not isinstance(
+                dot11, IEEE80211):  # check if the frame is a 802.11 packet
             continue
 
-        if dot11.type == MGMT_TYPE: # management frames
+        if dot11.type == MGMT_TYPE:  # management frames
             processManagementFrame(dot11, ts)
             c += 1
-    
+
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
     parseDelayedFrames()
 
     return c
+
 
 def parseWithoutRadio(pcap):
     c = 0
@@ -351,34 +393,49 @@ def parseWithoutRadio(pcap):
         except Exception:
             continue
 
-        if dot11.type == MGMT_TYPE: # management frames
+        if dot11.type == MGMT_TYPE:  # management frames
             processManagementFrame(dot11, ts)
             c += 1
 
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
     parseDelayedFrames()
-    
+
     return c
+
 
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
     try:
-        print(f"{ACTION} Generating {name_without_extension}.{format}. It may take awhile.")
-        cmd = [graph_type, f"{name_without_extension}.dot", "-Goverlap=scale", "-T", format, "-o", f"{name_without_extension}.{format}"] # graphviz command to execute
+        print(
+            f"{ACTION} Generating {name_without_extension}.{format}. \
+                    It may take awhile.")
+        cmd = [  # graphviz command to execute
+            graph_type,
+            f"{name_without_extension}.dot",
+            "-Goverlap=scale",
+            "-T",
+            format,
+            "-o",
+            f"{name_without_extension}.{format}"]
         if verbose:
             print(f"{INFO} Calling: {' '.join(cmd)}")
         r = call(cmd, stdout=PIPE, stderr=PIPE)
         if r != 0:
-            print(f"{FAIL} An error occured while generating the image! Left {name_without_extension}.dot intact.")
+            print(
+                f"{FAIL} An error occured while generating the image! \
+                        Left {name_without_extension}.dot intact.")
             exit(1)
         else:
             print(f"{ACTION} {name_without_extension}.{format} generated!")
             if not keep_dot:
                 if verbose:
                     print(f"{INFO} Calling: rm {name_without_extension}.dot")
-                call(["rm", f"{name_without_extension}.dot"], stdout=PIPE, stderr=PIPE)
+                call(["rm", f"{name_without_extension}.dot"],
+                     stdout=PIPE, stderr=PIPE)
     except FileNotFoundError:
-        print(f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't installed properly.")
+        print(
+            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't \
+                    installed properly.")
         exit(1)
 
 
@@ -390,49 +447,90 @@ def generateGraph(args):
     if args.format != "dot":
         createImageGraph(args.output, args.format, args.graph, args.keep_dot)
 
+
 def generateMultipleGraphs(args):
     if args.verbose:
         print(f"{INFO} Removing nodes without any edge...")
-    G_null = nx.Graph() # nodes without edges, don't need a fancy graph
-    nodes = list(G.nodes) # need a copy because some nodes in the original graph will be removed
+    G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
+    # need a copy because some nodes in the original graph will be removed
+    nodes = list(G.nodes)
     for node in nodes:
-        if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0: # if this node doesn't have any edge
-            G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
+        if len(G.in_edges(node)) == 0 and len(G.out_edges(
+                node)) == 0:  # if this node doesn't have any edge
+            G_null.add_node(
+                node,
+                value=G.nodes[node]["value"],
+                type=G.nodes[node]["type"])
             G.remove_node(node)
-    if not args.no_alone: # if generating alone_nodes graph
+    if not args.no_alone:  # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
             print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
             generateNodesColors(G_null)
             nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
             print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
             if args.format != "dot":
-                createImageGraph(f"{args.output}_alone_nodes", args.format, args.graph, args.keep_dot)
+                createImageGraph(
+                    f"{args.output}_alone_nodes",
+                    args.format,
+                    args.graph,
+                    args.keep_dot)
         else:
-            print(f"{ACTION} All nodes have an edge at least, don't generate {args.output}.{args.format} because it's empty.")
+            print(
+                f"{ACTION} All nodes have an edge at least, don't generate \
+                        {args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
-    for i,g in enumerate(list(nx.weakly_connected_components(G))): # there is no alone nodes as they were removed
+    for i, g in enumerate(list(nx.weakly_connected_components(
+            G))):  # there is no alone nodes as they were removed
         sub = G.subgraph(g)
         generateNodesColors(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
         nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
         print(f"{ACTION} {args.output}_{i}.dot generated!")
         if args.format != "dot":
-            createImageGraph(f"{args.output}_{i}", args.format, args.graph, args.keep_dot)
+            createImageGraph(
+                f"{args.output}_{i}",
+                args.format,
+                args.graph,
+                args.keep_dot)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create map from pcap containing IEEE802.11 frames.")
+    parser = argparse.ArgumentParser(
+        description="Create map from pcap containing IEEE802.11 frames.")
     parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True)
-    parser.add_argument("--output", "-o", help="Name without extension of the output file.", dest="output", required=True)
-    parser.add_argument("--ignore-probe", "-i", help="Ignore probe responses.", dest="no_probe", action="store_true")
-    parser.add_argument("--format", "-f", help="Output file's format.", dest="format", choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif", "json", "imap", "cmapx"], default="png")
-    parser.add_argument("--keep-dot", "-k", help="Keep .dot file.", dest="keep_dot", action="store_true")
-    parser.add_argument("--only-mac", "-m", help="Filter for mac.", dest="only_mac", nargs='+', action="store")
-    parser.add_argument("--only-bssid", "-b", help="Filter for bssid.", dest="only_bssid", nargs='+', action="store")
-    parser.add_argument("--no-alone-graph", "-a", help="Don't generate graph holding nodes without edges.", dest="no_alone", action="store_true")
-    parser.add_argument("--split-graph", "-s", help="Split graph into multiple files. This is useful when there is a lot of nodes.", dest="split_graph", action="store_true")
-    parser.add_argument("--verbose", "-v", help="Verbose mode.", dest="verbose", action="store_true")
-    parser.add_argument("--graph", "-g", help="Graphviz filter to use", dest="graph", choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp", "osage", "patchwork"], default="dot")
+    parser.add_argument(
+        "--output", "-o", help="Name without extension of the output file.",
+        dest="output", required=True)
+    parser.add_argument(
+        "--ignore-probe", "-i", help="Ignore probe responses.",
+        dest="no_probe", action="store_true")
+    parser.add_argument(
+        "--format", "-f", help="Output file's format.", dest="format",
+        choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif",
+                 "json", "imap", "cmapx"], default="png")
+    parser.add_argument(
+        "--keep-dot", "-k", help="Keep .dot file.",
+        dest="keep_dot", action="store_true")
+    parser.add_argument("--only-mac", "-m", help="Filter for mac.",
+                        dest="only_mac", nargs='+', action="store")
+    parser.add_argument("--only-bssid", "-b", help="Filter for bssid.",
+                        dest="only_bssid", nargs='+', action="store")
+    parser.add_argument(
+        "--no-alone-graph", "-a",
+        help="Don't generate graph holding nodes without edges.",
+        dest="no_alone", action="store_true")
+    parser.add_argument(
+        "--split-graph", "-s", help="Split graph into multiple
+        files. This is useful when there is a lot of nodes.",
+        dest="split_graph", action="store_true")
+    parser.add_argument(
+        "--verbose", "-v", help="Verbose mode.",
+        dest="verbose", action="store_true")
+    parser.add_argument(
+        "--graph", "-g", help="Graphviz filter to use", dest="graph",
+        choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp",
+                 "osage", "patchwork"], default="dot")
     args = parser.parse_args()
 
     if args.no_probe:
@@ -462,7 +560,7 @@ if __name__ == "__main__":
                 print(f"{INFO} Loading {args.pcap} in memory")
             packets = pcap.readpkts()
             raw_pcap.close()
-    except:
+    except BaseException:
         raw_pcap.close()
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
@@ -477,7 +575,8 @@ if __name__ == "__main__":
         print(f"{ACTION} Parsed {count} frames!")
     else:
         raw_pcap.close()
-        print(f"{FAIL} Wrong link-layer header type. It should either be LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
+        print(f"{FAIL} Wrong link-layer header type. It should either be \
+                LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
     raw_pcap.close()
 
