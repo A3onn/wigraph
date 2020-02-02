@@ -422,7 +422,7 @@ def parseWithoutRadio(pcap):
             processManagementFrame(dot11, ts)
             c += 1
         elif dot11.type == DATA_TYPE:
-            processDataFrale(dot11, ts)
+            processDataFrame(dot11, ts)
             c += 1
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
