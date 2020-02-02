@@ -289,14 +289,16 @@ def processManagementFrame(frame, ts):
         who = whatIs(src)
         if who == AP_T:
             addAP(src, AP(ts, bssid=bssid))
-            addClient(dst, Client(ts))
+            if dst != "ff:ff:ff:ff:ff:ff":
+                addClient(dst, Client(ts))
             
-            addEdge(src, dst, color=DISASSOC_FROM_AP)
+                addEdge(src, dst, color=DISASSOC_FROM_AP)
         elif who == CLIENT_T:
             addAP(dst, AP(ts, bssid=bssid))
-            addClient(src, Client(ts))
-            
-            addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
+            if dst != "ff:ff:ff:ff:ff:ff":
+                addClient(src, Client(ts))
+                
+                addEdge(src, dst, color=DISASSOC_FROM_CLIENT)
         elif who == UNKNOWN_T:
             pass
     elif frame.subtype == M_ACTION:
