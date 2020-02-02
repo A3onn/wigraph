@@ -329,6 +329,8 @@ def parseWithRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
+    if verbose:
+        print(f"{INFO} Handling delayed probe requests")
     for probe in delayed_probe_req:
         src = whatIs(probe[1])
         ssid = probe[2]
@@ -351,16 +353,17 @@ def parseWithoutRadio(pcap):
         if dot11.type == MGMT_TYPE: # management frames
             processManagementFrame(dot11, ts)
             c += 1
-    
+    if verbose:
+        print(f"{INFO} Handling delayed probe requests")
     for probe in delayed_probe_req:
         src = whatIs(probe[1])
-        ts = probe[0]
         ssid = probe[2]
-
+        ts = probe[0]
         if src == AP_T:
             addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
         elif src == CLIENT_T:
             addClient(probe[1], Client(ts, probe=ssid if ssid else "<broadcast>"))
+    
     return c
 
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
