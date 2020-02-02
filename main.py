@@ -127,7 +127,7 @@ class AP:
 class Client:
     def __init__(self, ts, probe=""):
         # might add more attributes later
-        self.probes = [probe] if probe != 0 else []
+        self.probes = [probe] if probe else []
         self.first_seen = ts
         self.last_seen = ts
         self.data_frames = 0
