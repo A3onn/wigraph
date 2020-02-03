@@ -452,7 +452,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
         if r != 0:
             print(
                 f"{FAIL} An error occured while generating the image!" \
-                        "Left {name_without_extension}.dot intact.")
+                        f"Left {name_without_extension}.dot intact.")
             exit(1)
         else:
             print(f"{ACTION} {name_without_extension}.{format} generated!")
@@ -505,8 +505,8 @@ def generateMultipleGraphs(args):
                     args.keep_dot)
         else:
             print(
-                f"{ACTION} All nodes have an edge at least, don't generate \
-                        {args.output}.{args.format} because it's empty.")
+                f"{ACTION} All nodes have an edge at least, don't generate" \
+                        f"{args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
     for i, g in enumerate(list(nx.weakly_connected_components(
@@ -550,8 +550,8 @@ if __name__ == "__main__":
         help="Don't generate graph holding nodes without edges.",
         dest="no_alone", action="store_true")
     parser.add_argument(
-        "--split-graph", "-s", help="Split graph into multiple \
-        files. This is useful when there is a lot of nodes.",
+        "--split-graph", "-s", help="Split graph into multiple" \
+        "files. This is useful when there is a lot of nodes.",
         dest="split_graph", action="store_true")
     parser.add_argument(
         "--verbose", "-v", help="Verbose mode.",
