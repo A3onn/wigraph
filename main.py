@@ -461,7 +461,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
                     print(f"{INFO} Calling: rm {name_without_extension}.dot")
                 call(["rm", f"{name_without_extension}.dot"],
                      stdout=PIPE, stderr=PIPE)
-    except FileNotFoundError:
+    except FileNotFoundError: # generated if graphviz prog used is not found
         print(
             f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't " \
                     "installed properly.")
@@ -471,7 +471,12 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.dot file...")
     generateNodesColors(G)
-    nx.nx_agraph.write_dot(G, f"{args.output}.dot")
+    try:
+        nx.nx_agraph.write_dot(sub, f"{args.output}.dot")
+    except ImportError:
+        print(f"{FAIL} Cannot generate {args.output}.dot. Verify your " \
+                "Graphviz installation and pygraphviz! Quitting.")
+        exit(1)
     print(f"{ACTION} {args.output}.dot generated!")
     if args.format != "dot":
         createImageGraph(args.output, args.format, args.graph, args.keep_dot)
@@ -514,7 +519,12 @@ def generateMultipleGraphs(args):
         sub = G.subgraph(g)
         generateNodesColors(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
-        nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
+        try:
+            nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
+        except ImportError:
+            print(f"{FAIL} Cannot generate {args.output}_{i}.dot. " \
+                    "Verify your Graphviz installation! Quitting.")
+            exit(1)
         print(f"{ACTION} {args.output}_{i}.dot generated!")
         if args.format != "dot":
             createImageGraph(
