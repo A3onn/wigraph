@@ -436,7 +436,7 @@ def parseWithoutRadio(pcap):
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
     try:
         print(
-            f"{ACTION} Generating {name_without_extension}.{format}." \
+            f"{ACTION} Generating {name_without_extension}.{format}. " \
                     "It may take awhile.")
         cmd = [  # graphviz command to execute
             graph_type,
@@ -451,7 +451,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
         r = call(cmd, stdout=PIPE, stderr=PIPE)
         if r != 0:
             print(
-                f"{FAIL} An error occured while generating the image!" \
+                f"{FAIL} An error occured while generating the image! " \
                         f"Left {name_without_extension}.dot intact.")
             exit(1)
         else:
@@ -463,7 +463,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
                      stdout=PIPE, stderr=PIPE)
     except FileNotFoundError:
         print(
-            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't" \
+            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't " \
                     "installed properly.")
         exit(1)
 
@@ -505,7 +505,7 @@ def generateMultipleGraphs(args):
                     args.keep_dot)
         else:
             print(
-                f"{ACTION} All nodes have an edge at least, don't generate" \
+                f"{ACTION} All nodes have an edge at least, don't generate " \
                         f"{args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
@@ -550,7 +550,7 @@ if __name__ == "__main__":
         help="Don't generate graph holding nodes without edges.",
         dest="no_alone", action="store_true")
     parser.add_argument(
-        "--split-graph", "-s", help="Split graph into multiple" \
+        "--split-graph", "-s", help="Split graph into multiple " \
         "files. This is useful when there is a lot of nodes.",
         dest="split_graph", action="store_true")
     parser.add_argument(
@@ -579,19 +579,16 @@ if __name__ == "__main__":
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
             pcap = dpkt.pcapng.Reader(raw_pcap)
-            if verbose:
-                print(f"{INFO} Loading {args.pcap} in memory")
-            packets = pcap.readpkts()
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
-            if verbose:
-                print(f"{INFO} Loading {args.pcap} in memory")
-            packets = pcap.readpkts()
     except BaseException:
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
-    finally:
-        raw_pcap.close()
+    
+    if verbose:
+        print(f"{INFO} Loading {args.pcap} in memory")
+    packets = pcap.readpkts()
+    raw_pcap.close()
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
@@ -603,7 +600,7 @@ if __name__ == "__main__":
         print(f"{ACTION} Parsed {count} frames!")
     else:
         raw_pcap.close()
-        print(f"{FAIL} Wrong link-layer header type. It should either be" \
+        print(f"{FAIL} Wrong link-layer header type. It should either be " \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
     raw_pcap.close()
