@@ -89,14 +89,15 @@ class AP:
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
             supported_rates = ",".join(map(str, self.rates[0]))
+            if supported_rates:
+                ret += f"supported rates: {supported_rates}\n"
             basic_rates = ",".join(map(str, self.rates[1]))
+            if basic_rates:
+                ret += f"basic rates: {basic_rates}\n"
 
-            ret += f"supported rates: {supported_rates}\n \
-                    basic rates: {basic_rates}\n"
-
-        ret += f"# of beacons: {self.beacons}\n \
-            First seen: {time.asctime(time.localtime(self.first_seen))}\n \
-            Last seen: {time.asctime(time.localtime(self.last_seen))}"
+        ret += f"# of beacons: {self.beacons}\n" \
+            f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
+            f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
     def __mod__(self, other):
@@ -157,8 +158,9 @@ class Client:
 
         if self.data_frames > 0:
             ret += f"# of data frame: {self.data_frames}\n"
-        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n \
-                Last seen: {time.asctime(time.localtime(self.last_seen))}"
+
+        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
+                f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
     def __mod__(self, other):
@@ -186,17 +188,17 @@ def generateNodesColors(G):
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac}\n \
-                    {str(G.nodes[mac]['value'])}", "style": "filled",
+                G, {mac: {"label": f"{mac}\n" \
+                    f"{str(G.nodes[mac]['value'])}", "style": "filled",
                     "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac}\n \
-                    {str(G.nodes[mac]['value'])}",
+                G, {mac: {"label": f"{mac}\n" \
+                    f"{str(G.nodes[mac]['value'])}",
                     "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\n \
-                    Repeater", "style": "filled", "fillcolor": REPEATER_C}})
+            nx.set_node_attributes(G, {mac: {"label": f"{mac}\nRepeater",
+                    "style": "filled", "fillcolor": REPEATER_C}})
 
 
 def whatIs(mac):
@@ -434,7 +436,8 @@ def parseWithoutRadio(pcap):
 def createImageGraph(name_without_extension, format, graph_type, keep_dot):
     try:
         print(
-            f"{ACTION} Generating {name_without_extension}.{format}. It may take awhile.")
+            f"{ACTION} Generating {name_without_extension}.{format}." \
+                    "It may take awhile.")
         cmd = [  # graphviz command to execute
             graph_type,
             f"{name_without_extension}.dot",
@@ -448,8 +451,8 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
         r = call(cmd, stdout=PIPE, stderr=PIPE)
         if r != 0:
             print(
-                f"{FAIL} An error occured while generating the image! \
-                        Left {name_without_extension}.dot intact.")
+                f"{FAIL} An error occured while generating the image!" \
+                        "Left {name_without_extension}.dot intact.")
             exit(1)
         else:
             print(f"{ACTION} {name_without_extension}.{format} generated!")
@@ -460,8 +463,8 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
                      stdout=PIPE, stderr=PIPE)
     except FileNotFoundError:
         print(
-            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't \
-                    installed properly.")
+            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't" \
+                    "installed properly.")
         exit(1)
 
 
@@ -601,8 +604,8 @@ if __name__ == "__main__":
         print(f"{ACTION} Parsed {count} frames!")
     else:
         raw_pcap.close()
-        print(f"{FAIL} Wrong link-layer header type. It should either be \
-                LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
+        print(f"{FAIL} Wrong link-layer header type. It should either be" \
+                "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
     raw_pcap.close()
 
