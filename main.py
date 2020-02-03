@@ -582,17 +582,16 @@ if __name__ == "__main__":
             if verbose:
                 print(f"{INFO} Loading {args.pcap} in memory")
             packets = pcap.readpkts()
-            raw_pcap.close()
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
             if verbose:
                 print(f"{INFO} Loading {args.pcap} in memory")
             packets = pcap.readpkts()
-            raw_pcap.close()
     except BaseException:
-        raw_pcap.close()
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
+    finally:
+        raw_pcap.close()
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
