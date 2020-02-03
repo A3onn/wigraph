@@ -474,8 +474,8 @@ def generateGraph(args):
     try:
         nx.nx_agraph.write_dot(sub, f"{args.output}.dot")
     except ImportError:
-        print(f"{FAIL} Cannot generate {args.output}.dot. Verify your " \
-                "Graphviz installation and pygraphviz! Quitting.")
+        print(f"{FAIL} Cannot generate {args.output}.dot. Verify that you " \
+                "have pygraphviz installed! Quitting.")
         exit(1)
     print(f"{ACTION} {args.output}.dot generated!")
     if args.format != "dot":
@@ -500,7 +500,12 @@ def generateMultipleGraphs(args):
         if len(G_null.nodes) > 0:
             print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
             generateNodesColors(G_null)
-            nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
+            try:
+                nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
+            except ImportError:
+                print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
+                        "you have pygraphviz installed! Quitting.")
+                exit(1)
             print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
             if args.format != "dot":
                 createImageGraph(
@@ -522,8 +527,8 @@ def generateMultipleGraphs(args):
         try:
             nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
         except ImportError:
-            print(f"{FAIL} Cannot generate {args.output}_{i}.dot. " \
-                    "Verify your Graphviz installation! Quitting.")
+            print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
+                    "you have pygraphviz installed! Quitting.")
             exit(1)
         print(f"{ACTION} {args.output}_{i}.dot generated!")
         if args.format != "dot":
