@@ -26,8 +26,9 @@ delayed_frames = {
         "data": []}
 
 # colors
-ACTION = "\033[92m[o]\033[0m"
-INFO = "\033[93m[i]\033[0m"
+ACTION = "\033[34m[.]\033[0m"
+FINISHED = "\033[92m[O]\033[0m"
+INFO = "\033[93m[I]\033[0m"
 FAIL = "\033[91m[X]\033[0m"
 
 # types of node
@@ -159,8 +160,8 @@ class Client:
         if self.data_frames > 0:
             ret += f"# of data frame: {self.data_frames}\n"
 
-        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
-                f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
+        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n"
+        ret += f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
     def __mod__(self, other):
@@ -455,7 +456,7 @@ def createImageGraph(name_without_extension, format, graph_type, keep_dot):
                         f"Left {name_without_extension}.dot intact.")
             exit(1)
         else:
-            print(f"{ACTION} {name_without_extension}.{format} generated!")
+            print(f"{FINISHED} {name_without_extension}.{format} generated!")
             if not keep_dot:
                 if verbose:
                     print(f"{INFO} Calling: rm {name_without_extension}.dot")
@@ -475,9 +476,9 @@ def generateGraph(args):
         nx.nx_agraph.write_dot(sub, f"{args.output}.dot")
     except ImportError:
         print(f"{FAIL} Cannot generate {args.output}.dot. Verify that you " \
-                "have pygraphviz installed! Quitting.")
+                "have Graphviz installed! Quitting.")
         exit(1)
-    print(f"{ACTION} {args.output}.dot generated!")
+    print(f"{FINISHED} {args.output}.dot generated!")
     if args.format != "dot":
         createImageGraph(args.output, args.format, args.graph, args.keep_dot)
 
@@ -504,9 +505,9 @@ def generateMultipleGraphs(args):
                 nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
             except ImportError:
                 print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
-                        "you have pygraphviz installed! Quitting.")
+                        "you have Graphviz installed! Quitting.")
                 exit(1)
-            print(f"{ACTION} {args.output}_alone_nodes.dot generated!")
+            print(f"{FINISHED} {args.output}_alone_nodes.dot generated!")
             if args.format != "dot":
                 createImageGraph(
                     f"{args.output}_alone_nodes",
@@ -528,9 +529,9 @@ def generateMultipleGraphs(args):
             nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
         except ImportError:
             print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
-                    "you have pygraphviz installed! Quitting.")
+                    "you have Graphviz installed! Quitting.")
             exit(1)
-        print(f"{ACTION} {args.output}_{i}.dot generated!")
+        print(f"{FINISHED} {args.output}_{i}.dot generated!")
         if args.format != "dot":
             createImageGraph(
                 f"{args.output}_{i}",
@@ -599,7 +600,7 @@ if __name__ == "__main__":
     except BaseException:
         print(f"{FAIL} An error occured while reading {args.pcap}.")
         exit(1)
-    
+
     if verbose:
         print(f"{INFO} Loading {args.pcap} in memory")
     packets = pcap.readpkts()
@@ -608,11 +609,11 @@ if __name__ == "__main__":
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithRadio(packets)
-        print(f"{ACTION} Parsed {count} frames!")
+        print(f"{FINISHED} Parsed {count} frames!")
     elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
         print(f"{ACTION} Begining of parsing!")
         count = parseWithoutRadio(packets)
-        print(f"{ACTION} Parsed {count} frames!")
+        print(f"{FINISHED} Parsed {count} frames!")
     else:
         raw_pcap.close()
         print(f"{FAIL} Wrong link-layer header type. It should either be " \
