@@ -1,11 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from dpkt.ieee80211 import *
+
+# colors used when displaying text
+ACTION = "\033[34m[.]\033[0m"
+FINISHED = "\033[92m[O]\033[0m"
+INFO = "\033[93m[i]\033[0m"
+FAIL = "\033[91m[X]\033[0m"
+
+# IMPORTS
+try:
+    from dpkt.ieee80211 import * # avoid typing: dpkt.ieee802.11.M_BEACON, etc
+    import dpkt
+except BaseException:
+    print(f"{FAIL} This program require dpkt. Please install it.")
+    exit(1)
+try:
+    import networkx as nx
+except BaseException:
+    print(f"{FAIL} This program require networkx. Please install it.")
+    exit(1)
 from subprocess import call, PIPE
-import dpkt
 import argparse
 import time
-import networkx as nx
+
 
 # CONSTANTS
 
@@ -26,12 +43,6 @@ delayed_frames = {
         "disassoc": [],
         "action": [],
         "data": []}
-
-# colors
-ACTION = "\033[34m[.]\033[0m"
-FINISHED = "\033[92m[O]\033[0m"
-INFO = "\033[93m[i]\033[0m"
-FAIL = "\033[91m[X]\033[0m"
 
 # types of node
 AP_T = 0
@@ -250,6 +261,8 @@ def addClient(mac, client):
 
 
 def processManagementFrame(frame, ts):
+    # some frames are delayed because either we cannot guess what is sending
+    # it or what is receiving it
     src = frame.mgmt.src.hex(":")
     dst = frame.mgmt.dst.hex(":")
     bssid = frame.mgmt.bssid.hex(":")
@@ -278,8 +291,8 @@ def processManagementFrame(frame, ts):
         delayed_frames["probe_req"].append(
             (ts, src, frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
-        # cannot guess who has sent a request, so we cannot guess
-        # who is the destination
+        # cannot guess what has sent a request, so we cannot guess
+        # what is the destination (AP or client)
         delayed_frames["probe_resp"].append(
             (ts, src, dst, frame.ssid.data.decode("utf-8", "ignore")))
         # but only APs send reponses
