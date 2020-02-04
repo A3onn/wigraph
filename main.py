@@ -12,6 +12,7 @@ import networkx as nx
 G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
+no_probe_graph = False
 verbose = False
 only_mac = tuple()
 only_bssid = tuple()
@@ -20,6 +21,7 @@ only_bssid = tuple()
 # the parsing to finish to add the edges
 delayed_frames = {
         "probe_req": [],
+        "probe_resp": [],
         "deauth": [],
         "disassoc": [],
         "action": [],
@@ -276,12 +278,14 @@ def processManagementFrame(frame, ts):
         delayed_frames["probe_req"].append(
             (ts, src, frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
+        # cannot guess who has sent a request, so we cannot guess
+        # who is the destination
+        delayed_frames["probe_resp"].append(
+            (ts, src, dst, frame.ssid.data.decode("utf-8", "ignore")))
+        # but only APs send reponses
         addAP(src, AP(ts, bssid=bssid,
                       ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       ch=frame.ds.ch, rates=toRates(frame.rate.data)))
-        addClient(dst, Client(ts, frame.ssid.data.decode("utf-8", "ignore")))
-
-        addEdge(src, dst, color=PROBE_RESP, style="dotted")
     elif frame.subtype == M_ASSOC_REQ:
         addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       bssid=bssid, rates=toRates(frame.rate.data)))
@@ -343,6 +347,25 @@ def parseDelayedFrames():
             addClient(
                 probe[1], Client(
                     ts, probe=ssid if ssid else "<broadcast>"))
+    if verbose:
+        print(f"{INFO} Handling delayed probe responses.")
+    for probe in delayed_frames["probe_resp"]:
+        # sender is an AP and addAP has been called directly
+        # in processManagementFrame
+        dst = whatIs(probe[2])
+        ssid = probe[3]
+        ts = probe[0]
+        if dst == AP_T:
+            addAP(probe[2], AP(ts, probe=ssid if ssid else "<broadcast>"))
+            if not no_probe_graph:
+                addEdge(probe[1], probe[2], color=PROBE_RESP, style="dotted")
+        elif dst == CLIENT_T:
+            addClient(
+                probe[2], Client(
+                    ts, probe=ssid if ssid else "<broadcast>"))
+            if not no_probe_graph:
+                addEdge(probe[1], probe[2], color=PROBE_RESP, style="dotted")
+
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
@@ -548,6 +571,9 @@ if __name__ == "__main__":
         "--output", "-o", help="Name without extension of the output file.",
         dest="output", required=True)
     parser.add_argument(
+        "--ignore-probe-graph", "-e", help="Don't draw probe responses, but don't ignore them.",
+        dest="no_probe_graph", action="store_true")
+    parser.add_argument(
         "--ignore-probe", "-i", help="Ignore probe responses.",
         dest="no_probe", action="store_true")
     parser.add_argument(
@@ -580,6 +606,8 @@ if __name__ == "__main__":
 
     if args.no_probe:
         ignore_probe_resp = True
+    if args.no_probe_graph:
+        no_probe_graph = True
     if args.verbose:
         verbose = True
     if args.only_mac:
