@@ -28,7 +28,7 @@ delayed_frames = {
 # colors
 ACTION = "\033[34m[.]\033[0m"
 FINISHED = "\033[92m[O]\033[0m"
-INFO = "\033[93m[I]\033[0m"
+INFO = "\033[93m[i]\033[0m"
 FAIL = "\033[91m[X]\033[0m"
 
 # types of node
@@ -473,7 +473,7 @@ def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.dot file...")
     generateNodesColors(G)
     try:
-        nx.nx_agraph.write_dot(sub, f"{args.output}.dot")
+        nx.nx_agraph.write_dot(G, f"{args.output}.dot")
     except ImportError:
         print(f"{FAIL} Cannot generate {args.output}.dot. Verify that you " \
                 "have Graphviz installed! Quitting.")
