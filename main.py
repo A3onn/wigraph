@@ -22,6 +22,7 @@ except ModuleNotFoundError:
 from subprocess import call, PIPE
 import argparse
 import time
+from functools import lru_cache
 
 
 # CONSTANTS
@@ -191,6 +192,8 @@ class Client:
 
 
 # FUNCTIONS
+
+@lru_cache(maxsize=512)
 def toRates(raw):
     rates = {2: 1, 4: 2, 11: 5.5, 12: 6, 18: 9, 22: 11, 24: 12, 36: 18, 44: 22,
             48: 24, 66: 33, 72: 36, 96: 48, 108: 54}
@@ -354,6 +357,7 @@ def processDataFrame(frame, ts):
     dst = frame.data_frame.dst.hex(":")
     delayed_frames["data"].append((ts, src, dst))
 
+
 def parseDelayedFrames():
     if verbose:
         print(f"{INFO} Handling delayed probe requests.")
@@ -388,7 +392,6 @@ def parseDelayedFrames():
                     ts, probe=ssid if ssid else "<broadcast>"))
             if not no_probe_graph:
                 addEdge(probe[1], probe[2], color=PROBE_RESP, style="dotted")
-
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
