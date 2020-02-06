@@ -354,9 +354,11 @@ def parseDelayedFrames():
         src = whatIs(probe[1])
         ssid = probe[2]
         ts = probe[0]
-        if src == AP_T:
+        if src == REPEATER_T:
+            pass
+        elif src == AP_T:
             addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
-        elif src == CLIENT_T:
+        else:
             addClient(
                 probe[1], Client(
                     ts, probe=ssid if ssid else "<broadcast>"))
