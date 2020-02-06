@@ -102,12 +102,12 @@ class AP:
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
-            supported_rates = ",".join(map(str, self.rates[0]))
-            if supported_rates:
-                ret += f"supported rates: {supported_rates}\n"
-            basic_rates = ",".join(map(str, self.rates[1]))
-            if basic_rates:
-                ret += f"basic rates: {basic_rates}\n"
+            mandatory_rates = ",".join(map(str, self.rates[0]))
+            if mandatory_rates:
+                ret += f"mandatory rates: {mandatory_rates}\n"
+            optional_rates = ",".join(map(str, self.rates[1]))
+            if optional_rates:
+                ret += f"optional rates: {optional_rates}\n"
 
         ret += f"# of beacons: {self.beacons}\n" \
             f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
@@ -192,8 +192,18 @@ class Client:
 
 # FUNCTIONS
 def toRates(raw):
-    # supported, basics
-    return [500 * x for x in raw if x > 127], [500 * x for x in raw if x > 127]
+    rates = {2: 1, 4: 2, 11: 5.5, 12: 6, 18: 9, 22: 11, 24: 12, 36: 18, 44: 22,
+            48: 24, 66: 33, 72: 36, 96: 48, 108: 54}
+    optional = []
+    mandatory = []
+    for b in raw:
+        if b > 127:
+            if b - 127 in rates:
+                mandatory.append(rates[b-127])
+        else:
+            if b in rates:
+                optional.append(rates[b])
+    return mandatory, optional
 
 
 def generateNodesColors(G):
