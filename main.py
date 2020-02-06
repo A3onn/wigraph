@@ -286,9 +286,6 @@ def processManagementFrame(frame, ts):
             # doesn't pass filter
             return
 
-    if frame.subtype in FRAMES_WITH_CAPABILITY:
-        ibss = frame.capability.ibss
-
     if frame.subtype == M_BEACON:
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode(
             "utf-8", "ignore"), ch=frame.ds.ch,
@@ -314,19 +311,19 @@ def processManagementFrame(frame, ts):
                       bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
-        addEdge(src, dst, color=ASSOC_REQ, style="box" if ibss else "solid")
+        addEdge(src, dst, color=ASSOC_REQ)
     elif frame.subtype == M_ASSOC_RESP:
         addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=ASSOC_RESP, style="box" if ibss else "solid")
+        addEdge(src, dst, color=ASSOC_RESP)
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid:  # meaning the client wants to reconnect
             addAP(dst, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
-        addEdge(src, dst, color=REASSOC_REQ, style="box" if ibss else "solid")
+        addEdge(src, dst, color=REASSOC_REQ)
     elif frame.subtype == M_REASSOC_RESP:
         addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts))
