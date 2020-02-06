@@ -359,6 +359,7 @@ def parseDelayedFrames():
         elif src == AP_T:
             addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
         else:
+            # assume it comes from a client because it does most of the time :D
             addClient(
                 probe[1], Client(
                     ts, probe=ssid if ssid else "<broadcast>"))
@@ -604,7 +605,7 @@ if __name__ == "__main__":
                         dest="only_bssid", nargs='+', action="store")
     parser.add_argument(
         "--no-alone-graph", "-a",
-        help="Don't generate graph holding nodes without edges.",
+        help="Don't generate graph holding nodes without edges. Works with -s.",
         dest="no_alone", action="store_true")
     parser.add_argument(
         "--split-graph", "-s", help="Split graph into multiple " \
