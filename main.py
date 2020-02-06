@@ -11,12 +11,12 @@ FAIL = "\033[91m[X]\033[0m"
 try:
     from dpkt.ieee80211 import * # avoid typing: dpkt.ieee802.11.M_BEACON, etc
     import dpkt
-except BaseException:
+except ModuleNotFoundError:
     print(f"{FAIL} This program require dpkt. Please install it.")
     exit(1)
 try:
     import networkx as nx
-except BaseException:
+except ModuleNotFoundError:
     print(f"{FAIL} This program require networkx. Please install it.")
     exit(1)
 from subprocess import call, PIPE
