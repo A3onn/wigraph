@@ -228,9 +228,9 @@ def whatIs(mac):
     return UNKNOWN_T
 
 
-def addEdge(src, dst, color, style="solid"):
+def addEdge(src, dst, color):
     if not G.has_edge(src, dst, key=color):
-        G.add_edge(src, dst, color=color, style=style, key=color)
+        G.add_edge(src, dst, color=color, key=color)
 
 
 def addAP(mac, ap):
@@ -313,7 +313,7 @@ def processManagementFrame(frame, ts):
         addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=ASSOC_C, style="dotted")
+        addEdge(src, dst, color=ASSOC_C)
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid:  # meaning the client wants to reconnect
@@ -325,7 +325,7 @@ def processManagementFrame(frame, ts):
         addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=REASSOC_RESP, style="dotted")
+        addEdge(src, dst, color=REASSOC_RESP)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256:  # CLIENT -> AP
             addAP(dst, AP(ts, bssid=bssid))
@@ -336,7 +336,7 @@ def processManagementFrame(frame, ts):
             addAP(src, AP(ts, bssid=bssid))
             addClient(dst, Client(ts))
 
-            addEdge(src, dst, color=AUTH_C, style="dotted")
+            addEdge(src, dst, color=AUTH_C)
 
     elif frame.subtype == M_DEAUTH:
         delayed_frames["deauth"].append((ts, src, dst))
@@ -379,13 +379,13 @@ def parseDelayedFrames():
         if dst == AP_T:
             addAP(probe[2], AP(ts, probe=ssid if ssid else "<broadcast>"))
             if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP_C, style="dotted")
+                addEdge(probe[1], probe[2], color=PROBE_RESP_C)
         elif dst == CLIENT_T:
             addClient(
                 probe[2], Client(
                     ts, probe=ssid if ssid else "<broadcast>"))
             if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP_C, style="dotted")
+                addEdge(probe[1], probe[2], color=PROBE_RESP_C)
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
@@ -476,16 +476,25 @@ def parseWithoutRadio(pcap):
 
     return c
 
+def addLegend(g):
+    g.add_node("AP", style="filled", fillcolor=AP_C)
+    g.add_node("CLIENT", style="filled", fillcolor=CLIENT_C)
+    g.add_edge("AP", "CLIENT", color=DISASSOC_C, fontcolor=DISASSOC_C,headlabel="disassoc")
+    g.add_edge("AP", "CLIENT", color=DEAUTH_C, fontcolor=DEAUTH_C,taillabel="deauth")
+    g.add_edge("AP", "CLIENT", color=AUTH_C, fontcolor=AUTH_C,headlabel="auth")
+    g.add_edge("AP", "CLIENT", color=REASSOC_C, fontcolor=REASSOC_C,taillabel="reassoc")
+    g.add_edge("AP", "CLIENT", color=ASSOC_C, fontcolor=ASSOC_C,headlabel="assoc")
+    g.add_edge("AP", "CLIENT", color=DATA_C, fontcolor=DATA_C,taillabel="data")
+    g.add_edge("AP", "CLIENT", color=ACTION_C, fontcolor=ACTION_C, headlabel="action")
+    g.add_edge("AP", "CLIENT", color=PROBE_RESP_C, fontcolor=PROBE_RESP_C, taillabel="probe resp")
 
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.{args.format} file...")
     generateNodesLabel(G)
+    addLegend(G)
 
     graph = nx.nx_agraph.to_agraph(G)
-    if args.verbose:
-        print(f"{INFO} Generating layout for {args.output}.{args.format}")
-    graph.layout(args.graph)
-    graph.draw(f"{args.output}.{args.format}")
+    graph.draw(f"{args.output}.{args.format}", prog=args.graph)
 
     print(f"{FINISHED} {args.output}.{args.format} generated!")
 
@@ -510,10 +519,7 @@ def generateMultipleGraphs(args):
             generateNodesLabel(G_null)
 
             graph = nx.nx_agraph.to_agraph(G_null)
-            if args.verbose:
-                print(f"{INFO} Generating layout for {args.output}_alone_nodes.{args.format}")
-            graph.layout(args.graph)
-            graph.draw(f"{args.output}_alone_nodes.{args.format}")
+            graph.draw(f"{args.output}_alone_nodes.{args.format}", prog=args.graph)
 
             print(f"{FINISHED} {args.output}_alone_nodes.{args.format} generated!")
 
@@ -523,16 +529,15 @@ def generateMultipleGraphs(args):
                         f"{args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
-    for i, g in enumerate(list(nx.weakly_connected_components(
-            G))):  # there is no alone nodes as they were removed
-        sub = G.subgraph(g)
+    for i, g in enumerate(list(nx.weakly_connected_components(G))):
+        # there is no alone nodes as they were removed
+
+        sub = nx.MultiDiGraph(G.subgraph(g))
         generateNodesLabel(sub)
+        addLegend(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
         graph = nx.nx_agraph.to_agraph(sub)
-        if args.verbose:
-            print(f"{INFO} Generating layout for {args.output}_{i}.{args.format}")
-        graph.layout(args.graph)
-        graph.draw(f"{args.output}_{i}.{args.format}")
+        graph.draw(f"{args.output}_{i}.{args.format}", prog=args.graph)
 
         print(f"{FINISHED} {args.output}_{i}.{args.format} generated!")
 
