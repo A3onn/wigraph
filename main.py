@@ -58,12 +58,9 @@ CLIENT_C = "#7777FF"
 REPEATER_C = "#77FF77"
 
 # edges
-ASSOC_REQ = "#0000FF"  # blue
-ASSOC_RESP = "#0000AA"
-AUTH_REQ = "#FF8C00"  # dark orange
-AUTH_RESP = "#AA4700"
-REASSOC_REQ = "#FF69B4"  # hot pink
-REASSOC_RESP = "#AA2560"
+ASSOC_C = "#0000FF"  # blue
+AUTH_C = "#FF8C00"  # dark orange
+REASSOC_C = "#FF69B4"  # hot pink
 PROBE_RESP = "#123456"
 DEAUTH_FROM_AP = "#800000"  # maroon
 DEAUTH_FROM_CLIENT = "#400000"
@@ -314,35 +311,35 @@ def processManagementFrame(frame, ts):
                       bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
-        addEdge(src, dst, color=ASSOC_REQ)
+        addEdge(src, dst, color=ASSOC_C)
     elif frame.subtype == M_ASSOC_RESP:
         addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=ASSOC_RESP)
+        addEdge(src, dst, color=ASSOC_C, style="dotted")
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid:  # meaning the client wants to reconnect
             addAP(dst, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
-        addEdge(src, dst, color=REASSOC_REQ)
+        addEdge(src, dst, color=REASSOC_C)
     elif frame.subtype == M_REASSOC_RESP:
         addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=REASSOC_RESP)
+        addEdge(src, dst, color=REASSOC_RESP, style="dotted")
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256:  # CLIENT -> AP
             addAP(dst, AP(ts, bssid=bssid))
             addClient(src, Client(ts))
 
-            addEdge(src, dst, color=AUTH_REQ)
+            addEdge(src, dst, color=AUTH_C)
         elif frame.auth.auth_seq == 512:  # AP -> CLIENT
             addAP(src, AP(ts, bssid=bssid))
             addClient(dst, Client(ts))
 
-            addEdge(src, dst, color=AUTH_RESP)
+            addEdge(src, dst, color=AUTH_C, style="dotted")
 
     elif frame.subtype == M_DEAUTH:
         delayed_frames["deauth"].append((ts, src, dst))
