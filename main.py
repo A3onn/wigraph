@@ -574,8 +574,8 @@ if __name__ == "__main__":
         dest="verbose", action="store_true")
     parser.add_argument(
         "--graph", "-g", help="Graphviz filter to use", dest="graph",
-        choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp",
-                 "osage", "patchwork"], default="dot")
+        choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
+        default="sfdp")
     args = parser.parse_args()
 
     if args.no_probe:
