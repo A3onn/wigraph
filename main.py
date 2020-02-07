@@ -105,10 +105,10 @@ class AP:
             # [int] -> [str] with map
             mandatory_rates = ",".join(map(str, self.rates[0]))
             if mandatory_rates:
-                ret += f"mandatory rates: {mandatory_rates}\n"
+                ret += f"mandatory rates Mbit/s: {mandatory_rates}\n"
             optional_rates = ",".join(map(str, self.rates[1]))
             if optional_rates:
-                ret += f"optional rates: {optional_rates}\n"
+                ret += f"optional rates Mbit/s: {optional_rates}\n"
 
         ret += f"# of beacons: {self.beacons}\n" \
             f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
