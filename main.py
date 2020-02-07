@@ -23,6 +23,7 @@ from subprocess import call, PIPE
 import argparse
 import time
 from functools import lru_cache
+import textwrap
 
 
 # CONSTANTS
@@ -92,7 +93,7 @@ class AP:
             ret += f"channel: {self.ch}\n"
 
         if self.probes:
-            probed = ",".join(self.probes)
+            probed = textwrap.fill(",".join(self.probes))
             ret += f"probed: {probed}\n"
 
         if len(self.rates) != 0:  # if we know its rates
@@ -162,7 +163,7 @@ class Client:
     def __str__(self):
         ret = ""
         if self.probes:
-            probed = ",".join(self.probes)
+            probed = textwrap.fill(",".join(self.probes))
             ret += f"probed: {probed}\n"
 
         if self.data_frames > 0:
@@ -325,7 +326,7 @@ def processManagementFrame(frame, ts):
         addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts))
 
-        addEdge(src, dst, color=REASSOC_RESP)
+        addEdge(src, dst, color=REASSOC_C)
     elif frame.subtype == M_AUTH:
         if frame.auth.auth_seq == 256:  # CLIENT -> AP
             addAP(dst, AP(ts, bssid=bssid))
