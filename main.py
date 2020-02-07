@@ -559,11 +559,12 @@ def generateMultipleGraphs(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Create map from pcap containing IEEE802.11 frames.")
-    parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True)
+        description="Create wifi graph from PCAP containing IEEE802.11 frames.")
+    parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True,
+            metavar="PCAP")
     parser.add_argument(
         "--output", "-o", help="Name without extension of the output file.",
-        dest="output", required=True)
+        dest="output", required=True, metavar="name")
     parser.add_argument(
         "--ignore-probe-graph", "-e", help="Don't draw probe responses,"
         "but don't ignore them.",
@@ -574,16 +575,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--format", "-f", help="Output file's format.", dest="format",
         choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif",
-                 "json", "imap", "cmapx"], default="png")
-    parser.add_argument(
-        "--keep-dot", "-k", help="Keep .dot file.",
-        dest="keep_dot", action="store_true")
+                 "json", "imap", "cmapx"], default="png", metavar="format")
     parser.add_argument("--only-mac", "-m", help="Filter for mac.",
-                        dest="only_mac", nargs='+', action="store")
+                        dest="only_mac", nargs='+', action="store",
+                        metavar="MACs")
     parser.add_argument("--no-legend", "-l", help="Don't draw the legend.",
                         dest="no_legend", action="store_true")
     parser.add_argument("--only-bssid", "-b", help="Filter for bssid.",
-                        dest="only_bssid", nargs='+', action="store")
+                        dest="only_bssid", nargs='+', action="store",
+                        metavar="BSSIDs")
     parser.add_argument(
         "--no-alone-graph", "-a",
         help="Don't generate graph holding nodes without edges. Works with -s.",
@@ -598,7 +598,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--graph", "-g", help="Graphviz filter to use", dest="graph",
         choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
-        default="sfdp")
+        default="sfdp", metavar="prog")
     args = parser.parse_args()
 
     if args.no_probe:
