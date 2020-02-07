@@ -491,7 +491,9 @@ def addLegend(g):
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.{args.format} file...")
     generateNodesLabel(G)
-    addLegend(G)
+
+    if not args.no_legend:
+        addLegend(G)
 
     graph = nx.nx_agraph.to_agraph(G)
     graph.draw(f"{args.output}.{args.format}", prog=args.graph)
@@ -534,7 +536,9 @@ def generateMultipleGraphs(args):
 
         sub = nx.MultiDiGraph(G.subgraph(g))
         generateNodesLabel(sub)
-        addLegend(sub)
+
+        if not args.no_legend:
+            addLegend(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
         graph = nx.nx_agraph.to_agraph(sub)
         graph.draw(f"{args.output}_{i}.{args.format}", prog=args.graph)
@@ -564,6 +568,8 @@ if __name__ == "__main__":
         dest="keep_dot", action="store_true")
     parser.add_argument("--only-mac", "-m", help="Filter for mac.",
                         dest="only_mac", nargs='+', action="store")
+    parser.add_argument("--no-legend", "-l", help="Don't draw the legend.",
+                        dest="no_legend", action="store_true")
     parser.add_argument("--only-bssid", "-b", help="Filter for bssid.",
                         dest="only_bssid", nargs='+', action="store")
     parser.add_argument(
