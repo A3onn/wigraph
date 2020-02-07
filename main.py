@@ -61,14 +61,11 @@ REPEATER_C = "#77FF77"
 ASSOC_C = "#0000FF"  # blue
 AUTH_C = "#FF8C00"  # dark orange
 REASSOC_C = "#FF69B4"  # hot pink
-PROBE_RESP = "#123456"
-DEAUTH_FROM_AP = "#800000"  # maroon
-DEAUTH_FROM_CLIENT = "#400000"
-DISASSOC_FROM_CLIENT = "#32CD32"  # lime green
-DISASSOC_FROM_AP = "#007800"
-ACTION_FROM_AP = "#556B2F"  # dark olive green
-ACTION_FROM_CLIENT = "#11460A"
-DATA = "#000000"
+PROBE_RESP_C = "#123456"
+DEAUTH_C = "#800000"  # maroon
+DISASSOC_C = "#32CD32"  # lime green
+ACTION_C = "#556B2F"  # dark olive green
+DATA_C = "#000000"
 
 
 # CLASSES
@@ -382,13 +379,13 @@ def parseDelayedFrames():
         if dst == AP_T:
             addAP(probe[2], AP(ts, probe=ssid if ssid else "<broadcast>"))
             if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP, style="dotted")
+                addEdge(probe[1], probe[2], color=PROBE_RESP_C, style="dotted")
         elif dst == CLIENT_T:
             addClient(
                 probe[2], Client(
                     ts, probe=ssid if ssid else "<broadcast>"))
             if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP, style="dotted")
+                addEdge(probe[1], probe[2], color=PROBE_RESP_C, style="dotted")
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
@@ -397,9 +394,9 @@ def parseDelayedFrames():
         ts = probe[0]
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=DEAUTH_FROM_AP)
+                addEdge(probe[1], probe[2], color=DEAUTH_C)
             else:
-                addEdge(probe[1], probe[2], color=DEAUTH_FROM_CLIENT)
+                addEdge(probe[1], probe[2], color=DEAUTH_C)
     if verbose:
         print(f"{INFO} Handling delayed disassociation frames.")
     for probe in delayed_frames["disassoc"]:
@@ -408,9 +405,9 @@ def parseDelayedFrames():
         ts = probe[0]
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=DISASSOC_FROM_AP)
+                addEdge(probe[1], probe[2], color=DISASSOC_C)
             else:
-                addEdge(probe[1], probe[2], color=DISASSOC_FROM_CLIENT)
+                addEdge(probe[1], probe[2], color=DISASSOC_C)
     if verbose:
         print(f"{INFO} Handling delayed action frames.")
     for probe in delayed_frames["action"]:
@@ -419,9 +416,9 @@ def parseDelayedFrames():
         ts = probe[0]
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=ACTION_FROM_AP)
+                addEdge(probe[1], probe[2], color=ACTION_C)
             else:
-                addEdge(probe[1], probe[2], color=ACTION_FROM_CLIENT)
+                addEdge(probe[1], probe[2], color=ACTION_C)
     if verbose:
         print(f"{INFO} Handling delayed data frames.")
     for probe in delayed_frames["data"]:
@@ -429,7 +426,7 @@ def parseDelayedFrames():
         dst = whatIs(probe[2])
         ts = probe[0]
         if src != UNKNOWN_T and dst != UNKNOWN_T:
-            addEdge(probe[1], probe[2], color=DATA)
+            addEdge(probe[1], probe[2], color=DATA_C)
 
 
 def parseWithRadio(pcap):
