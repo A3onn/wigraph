@@ -209,7 +209,7 @@ def toRates(raw):
     return mandatory, optional
 
 
-def generateNodesColors(G):
+def generateNodesLabel(G):
     # this is used to avoid generating the label of each node each time there
     # is a modification
     for mac in G.nodes:
@@ -483,53 +483,17 @@ def parseWithoutRadio(pcap):
     return c
 
 
-def createImageGraph(name_without_extension, format, graph_type, keep_dot):
-    try:
-        print(
-            f"{ACTION} Generating {name_without_extension}.{format}. " \
-                    "It may take awhile.")
-        cmd = [  # graphviz command to execute
-            graph_type,
-            f"{name_without_extension}.dot",
-            "-Goverlap=scale",
-            "-T",
-            format,
-            "-o",
-            f"{name_without_extension}.{format}"]
-        if verbose:
-            print(f"{INFO} Calling: {' '.join(cmd)}")
-        r = call(cmd, stdout=PIPE, stderr=PIPE)
-        if r != 0:
-            print(
-                f"{FAIL} An error occured while generating the image! " \
-                        f"Left {name_without_extension}.dot intact.")
-            exit(1)
-        else:
-            print(f"{FINISHED} {name_without_extension}.{format} generated!")
-            if not keep_dot:
-                if verbose:
-                    print(f"{INFO} Calling: rm {name_without_extension}.dot")
-                call(["rm", f"{name_without_extension}.dot"],
-                     stdout=PIPE, stderr=PIPE)
-    except FileNotFoundError: # generated if graphviz prog used is not found
-        print(
-            f"{FAIL} Impossible to generate the image! Maybe Graphviz isn't " \
-                    "installed properly.")
-        exit(1)
-
-
 def generateGraph(args):
-    print(f"{ACTION} Generating {args.output}.dot file...")
-    generateNodesColors(G)
-    try:
-        nx.nx_agraph.write_dot(G, f"{args.output}.dot")
-    except ImportError:
-        print(f"{FAIL} Cannot generate {args.output}.dot. Verify that you " \
-                "have Graphviz installed! Quitting.")
-        exit(1)
-    print(f"{FINISHED} {args.output}.dot generated!")
-    if args.format != "dot":
-        createImageGraph(args.output, args.format, args.graph, args.keep_dot)
+    print(f"{ACTION} Generating {args.output}.{args.format} file...")
+    generateNodesLabel(G)
+
+    graph = nx.nx_agraph.to_agraph(G)
+    if args.verbose:
+        print(f"{INFO} Generating layout for {args.output}.{args.format}")
+    graph.layout(args.graph)
+    graph.draw(f"{args.output}.{args.format}")
+
+    print(f"{FINISHED} {args.output}.{args.format} generated!")
 
 
 def generateMultipleGraphs(args):
@@ -549,20 +513,16 @@ def generateMultipleGraphs(args):
     if not args.no_alone:  # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
             print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
-            generateNodesColors(G_null)
-            try:
-                nx.nx_agraph.write_dot(G_null, f"{args.output}_alone_nodes.dot")
-            except ImportError:
-                print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
-                        "you have Graphviz installed! Quitting.")
-                exit(1)
-            print(f"{FINISHED} {args.output}_alone_nodes.dot generated!")
-            if args.format != "dot":
-                createImageGraph(
-                    f"{args.output}_alone_nodes",
-                    args.format,
-                    args.graph,
-                    args.keep_dot)
+            generateNodesLabel(G_null)
+
+            graph = nx.nx_agraph.to_agraph(G_null)
+            if args.verbose:
+                print(f"{INFO} Generating layout for {args.output}_alone_nodes.{args.format}")
+            graph.layout(args.graph)
+            graph.draw(f"{args.output}_alone_nodes.{args.format}")
+
+            print(f"{FINISHED} {args.output}_alone_nodes.{args.format} generated!")
+
         else:
             print(
                 f"{ACTION} All nodes have an edge at least, don't generate " \
@@ -572,21 +532,15 @@ def generateMultipleGraphs(args):
     for i, g in enumerate(list(nx.weakly_connected_components(
             G))):  # there is no alone nodes as they were removed
         sub = G.subgraph(g)
-        generateNodesColors(sub)
+        generateNodesLabel(sub)
         print(f"{ACTION} Generating {args.output}_{i}.dot file...")
-        try:
-            nx.nx_agraph.write_dot(sub, f"{args.output}_{i}.dot")
-        except ImportError:
-            print(f"{FAIL} Cannot generate {args.output}.dot. Verify that " \
-                    "you have Graphviz installed! Quitting.")
-            exit(1)
-        print(f"{FINISHED} {args.output}_{i}.dot generated!")
-        if args.format != "dot":
-            createImageGraph(
-                f"{args.output}_{i}",
-                args.format,
-                args.graph,
-                args.keep_dot)
+        graph = nx.nx_agraph.to_agraph(sub)
+        if args.verbose:
+            print(f"{INFO} Generating layout for {args.output}_{i}.{args.format}")
+        graph.layout(args.graph)
+        graph.draw(f"{args.output}_{i}.{args.format}")
+
+        print(f"{FINISHED} {args.output}_{i}.{args.format} generated!")
 
 
 if __name__ == "__main__":
