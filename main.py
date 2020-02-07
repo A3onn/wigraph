@@ -480,14 +480,22 @@ def parseWithoutRadio(pcap):
 def addLegend(g):
     g.add_node("AP", style="filled", fillcolor=AP_C)
     g.add_node("CLIENT", style="filled", fillcolor=CLIENT_C)
-    g.add_edge("AP", "CLIENT", color=DISASSOC_C, fontcolor=DISASSOC_C,headlabel="disassoc")
-    g.add_edge("AP", "CLIENT", color=DEAUTH_C, fontcolor=DEAUTH_C,taillabel="deauth")
-    g.add_edge("AP", "CLIENT", color=AUTH_C, fontcolor=AUTH_C,headlabel="auth")
-    g.add_edge("AP", "CLIENT", color=REASSOC_C, fontcolor=REASSOC_C,taillabel="reassoc")
-    g.add_edge("AP", "CLIENT", color=ASSOC_C, fontcolor=ASSOC_C,headlabel="assoc")
-    g.add_edge("AP", "CLIENT", color=DATA_C, fontcolor=DATA_C,taillabel="data")
-    g.add_edge("AP", "CLIENT", color=ACTION_C, fontcolor=ACTION_C, headlabel="action")
-    g.add_edge("AP", "CLIENT", color=PROBE_RESP_C, fontcolor=PROBE_RESP_C, taillabel="probe resp")
+    g.add_edge("AP", "CLIENT",
+            color=DISASSOC_C, fontcolor=DISASSOC_C,headlabel="disassoc")
+    g.add_edge("AP", "CLIENT",
+            color=DEAUTH_C, fontcolor=DEAUTH_C,taillabel="deauth")
+    g.add_edge("AP", "CLIENT",
+            color=AUTH_C, fontcolor=AUTH_C,headlabel="auth")
+    g.add_edge("AP", "CLIENT",
+            color=REASSOC_C, fontcolor=REASSOC_C,taillabel="reassoc")
+    g.add_edge("AP", "CLIENT",
+            color=ASSOC_C, fontcolor=ASSOC_C,headlabel="assoc")
+    g.add_edge("AP", "CLIENT",
+            color=DATA_C, fontcolor=DATA_C,taillabel="data")
+    g.add_edge("AP", "CLIENT",
+            color=ACTION_C, fontcolor=ACTION_C, headlabel="action")
+    g.add_edge("AP", "CLIENT",
+            color=PROBE_RESP_C, fontcolor=PROBE_RESP_C, taillabel="probe resp")
 
 def generateGraph(args):
     print(f"{ACTION} Generating {args.output}.{args.format} file...")
@@ -522,9 +530,11 @@ def generateMultipleGraphs(args):
             generateNodesLabel(G_null)
 
             graph = nx.nx_agraph.to_agraph(G_null)
-            graph.draw(f"{args.output}_alone_nodes.{args.format}", prog=args.graph)
+            graph.draw(f"{args.output}_alone_nodes.{args.format}",
+                    prog=args.graph)
 
-            print(f"{FINISHED} {args.output}_alone_nodes.{args.format} generated!")
+            print(f"{FINISHED} {args.output}_alone_nodes.{args.format}"
+                "generated!")
 
         else:
             print(
@@ -555,7 +565,8 @@ if __name__ == "__main__":
         "--output", "-o", help="Name without extension of the output file.",
         dest="output", required=True)
     parser.add_argument(
-        "--ignore-probe-graph", "-e", help="Don't draw probe responses, but don't ignore them.",
+        "--ignore-probe-graph", "-e", help="Don't draw probe responses,"
+        "but don't ignore them.",
         dest="no_probe_graph", action="store_true")
     parser.add_argument(
         "--ignore-probe", "-i", help="Ignore probe responses.",
