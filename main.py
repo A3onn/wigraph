@@ -35,6 +35,7 @@ no_probe_graph = False
 verbose = False
 only_mac = tuple()
 only_bssid = tuple()
+no_oui_lookup = True
 
 # cannot get any idea who's sending and who's receiving, so we have to wait
 # the parsing to finish to add the edges
@@ -210,16 +211,16 @@ def generateNodesLabel(G):
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac}\n" \
+                G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\n" \
                     f"{str(G.nodes[mac]['value'])}", "style": "filled",
                     "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac}\n" \
+                G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\n" \
                     f"{str(G.nodes[mac]['value'])}",
                     "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac}\nRepeater",
+            nx.set_node_attributes(G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\nRepeater",
                     "style": "filled", "fillcolor": REPEATER_C}})
 
 
@@ -477,6 +478,17 @@ def parseWithoutRadio(pcap):
 
     return c
 
+
+@lru_cache(maxsize=None)
+def OUILookup(mac):
+    with open("oui.txt", "r") as f:
+        for line in f:
+            elements = line.split("\t")
+            if mac.startswith(elements[0]):
+                return elements[1].strip()
+    return "Unknown"
+
+
 def addLegend(g):
     g.add_node("AP", style="filled", fillcolor=AP_C)
     g.add_node("CLIENT", style="filled", fillcolor=CLIENT_C)
@@ -596,17 +608,18 @@ if __name__ == "__main__":
         "--verbose", "-v", help="Verbose mode.",
         dest="verbose", action="store_true")
     parser.add_argument(
+        "--no-oui-lookup", "-k", help="Don't resolve MACs addresses.",
+        dest="no_oui_lookup", action="store_true")
+    parser.add_argument(
         "--graph", "-g", help="Graphviz filter to use", dest="graph",
         choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
         default="sfdp", metavar="prog")
     args = parser.parse_args()
 
-    if args.no_probe:
-        ignore_probe_resp = True
-    if args.no_probe_graph:
-        no_probe_graph = True
-    if args.verbose:
-        verbose = True
+    ignore_probe_resp = args.no_probe
+    no_probe_graph = args.no_probe_graph
+    verbose = args.verbose
+    no_oui_lookup = args.no_oui_lookup
     if args.only_mac:
         only_mac = tuple(args.only_mac)
     if args.only_bssid:
