@@ -62,7 +62,7 @@ REPEATER_C = "#77FF77"
 ASSOC_C = "#0000FF"  # blue
 AUTH_C = "#FF8C00"  # dark orange
 REASSOC_C = "#FF69B4"  # hot pink
-PROBE_RESP_C = "#123456"
+PROBE_RESP_C = "#009B9F" # blue ice
 DEAUTH_C = "#800000"  # maroon
 DISASSOC_C = "#32CD32"  # lime green
 ACTION_C = "#556B2F"  # dark olive green
@@ -395,8 +395,8 @@ def parseWithRadio(pcap):
         except Exception:
             continue
 
-        if not isinstance(
-                dot11, IEEE80211):  # check if the frame is a 802.11 packet
+        if not isinstance(dot11, IEEE80211):
+            # check if the frame is a 802.11 packet
             continue
 
         if dot11.type == MGMT_TYPE:  # management frames
