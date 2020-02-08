@@ -271,9 +271,9 @@ def addClient(mac, client):
 def processManagementFrame(frame, ts):
     # some frames are delayed because either we cannot guess what is sending
     # it or what is receiving it
-    src = frame.mgmt.src.hex(":")
-    dst = frame.mgmt.dst.hex(":")
-    bssid = frame.mgmt.bssid.hex(":")
+    src = frame.mgmt.src.hex(":").upper()
+    dst = frame.mgmt.dst.hex(":").upper()
+    bssid = frame.mgmt.bssid.hex(":").upper()
 
     if len(only_mac) > 0:  # if there is a filter for mac
         if (src not in only_mac) and (dst not in only_mac):
@@ -348,8 +348,8 @@ def processManagementFrame(frame, ts):
 
 
 def processDataFrame(frame, ts):
-    src = frame.data_frame.src.hex(":")
-    dst = frame.data_frame.dst.hex(":")
+    src = frame.data_frame.src.hex(":").upper()
+    dst = frame.data_frame.dst.hex(":").upper()
     delayed_frames["data"].append((ts, src, dst))
 
 
