@@ -19,8 +19,8 @@ try:
 except ModuleNotFoundError:
     print(f"{FAIL} This program require networkx. Please install it.")
     exit(1)
-from subprocess import call, PIPE
 import argparse
+import os
 import time
 from functools import lru_cache
 import textwrap
@@ -36,6 +36,7 @@ verbose = False
 only_mac = tuple()
 only_bssid = tuple()
 no_oui_lookup = True
+oui_content = {}
 
 # cannot get any idea who's sending and who's receiving, so we have to wait
 # the parsing to finish to add the edges
@@ -435,11 +436,9 @@ def parseWithoutRadio(pcap):
 
 @lru_cache(maxsize=None)
 def OUILookup(mac):
-    with open("oui.txt", "r") as f:
-        for line in f:
-            elements = line.split("\t")
-            if mac.startswith(elements[0]):
-                return elements[1].strip()
+    for mac_o in oui_content:
+        if mac.startswith(mac_o):
+            return oui_content[mac_o]
     return "Unknown"
 
 
@@ -573,6 +572,24 @@ if __name__ == "__main__":
     ignore_probe_resp = args.no_probe
     no_probe_graph = args.no_probe_graph
     verbose = args.verbose
+
+    if not args.no_oui_lookup:
+        try:
+            with open("oui.txt", "r") as f:
+                for line in f:
+                    elements = line.strip().split("\t")
+                    # MAC: NAME
+                    oui_content.update({elements[0]: elements[1]})
+                    no_oui_lookup = False
+        except FileNotFoundError:
+            print(f"{FAIL} Impossible to open oui.txt, please put this file "
+                    "in the same directory as this file: "
+                    f"{os.path.dirname(os.path.realpath(__file__))}. "
+                    "Quitting.")
+            exit(1)
+    else:
+        no_oui_lookup = True
+
     no_oui_lookup = args.no_oui_lookup
     if args.only_mac:
         only_mac = tuple(args.only_mac)
