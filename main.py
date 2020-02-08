@@ -40,8 +40,6 @@ no_oui_lookup = True
 # cannot get any idea who's sending and who's receiving, so we have to wait
 # the parsing to finish to add the edges
 delayed_frames = {
-        "probe_req": [],
-        "probe_resp": [],
         "deauth": [],
         "disassoc": [],
         "action": [],
@@ -72,8 +70,7 @@ DATA_C = "#000000"
 
 # CLASSES
 class AP:
-    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[], probe=""):
-        self.probes = [probe] if probe else []
+    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[]):
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
@@ -92,10 +89,6 @@ class AP:
 
         if self.ch != -1:
             ret += f"channel: {self.ch}\n"
-
-        if self.probes:
-            probed = textwrap.fill(",".join(self.probes))
-            ret += f"probed: {probed}\n"
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
@@ -132,10 +125,6 @@ class AP:
 
         if not isinstance(other, AP):
             raise TypeError()
-
-        if other.probes:
-            if other.probes[0] not in self.probes:
-                self.probes.append(other.probes[0])
 
         if not self.bssid and other.bssid:
             self.bssid = other.bssid
@@ -294,17 +283,15 @@ def processManagementFrame(frame, ts):
             # add a beacon manually
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
-        delayed_frames["probe_req"].append(
-            (ts, src, frame.ssid.data.decode("utf-8", "ignore")))
+        addClient(src, Client(ts,
+            probe=frame.ssid.data.decode("utf-8", "ignore")))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
-        # cannot guess what has sent a request, so we cannot guess
-        # what is the destination (AP or client)
-        delayed_frames["probe_resp"].append(
-            (ts, src, dst, frame.ssid.data.decode("utf-8", "ignore")))
-        # but only APs send reponses
+        addClient(dst, Client(ts))
         addAP(src, AP(ts, bssid=bssid,
                       ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       ch=frame.ds.ch, rates=toRates(frame.rate.data)))
+        if not no_probe_graph:
+            addEdge(src, dst, color=PROBE_RESP_C)
     elif frame.subtype == M_ASSOC_REQ:
         addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       bssid=bssid, rates=toRates(frame.rate.data)))
@@ -355,39 +342,6 @@ def processDataFrame(frame, ts):
 
 
 def parseDelayedFrames():
-    if verbose:
-        print(f"{INFO} Handling delayed probe requests.")
-    for probe in delayed_frames["probe_req"]:
-        src = whatIs(probe[1])
-        ssid = probe[2]
-        ts = probe[0]
-        if src == REPEATER_T:
-            pass
-        elif src == AP_T:
-            addAP(probe[1], AP(ts, probe=ssid if ssid else "<broadcast>"))
-        else:
-            # assume it comes from a client because it does most of the time :D
-            addClient(
-                probe[1], Client(
-                    ts, probe=ssid if ssid else "<broadcast>"))
-    if verbose:
-        print(f"{INFO} Handling delayed probe responses.")
-    for probe in delayed_frames["probe_resp"]:
-        # sender is an AP and addAP has been called directly
-        # in processManagementFrame
-        dst = whatIs(probe[2])
-        ssid = probe[3]
-        ts = probe[0]
-        if dst == AP_T:
-            addAP(probe[2], AP(ts, probe=ssid if ssid else "<broadcast>"))
-            if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP_C)
-        elif dst == CLIENT_T:
-            addClient(
-                probe[2], Client(
-                    ts, probe=ssid if ssid else "<broadcast>"))
-            if not no_probe_graph:
-                addEdge(probe[1], probe[2], color=PROBE_RESP_C)
     if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
     for probe in delayed_frames["deauth"]:
