@@ -21,6 +21,7 @@ except ModuleNotFoundError:
     exit(1)
 import argparse
 import os
+import re
 import time
 from functools import lru_cache
 import textwrap
@@ -610,6 +611,17 @@ if __name__ == "__main__":
     if args.only_bssid:
         only_bssid = tuple(args.only_bssid)
 
+
+    mac_p = re.compile(r"^([0-9A-Fa-f][0-9A-Fa-f]:){5}[0-9A-Fa-f][0-9A-Fa-f]$")
+    for bssid in only_bssid:
+        if not mac_p.match(bssid):
+            print(f"{FAIL} {bssid} is not a valid BSSID!")
+            exit(1)
+    for mac in only_mac:
+        if not mac_p.match(mac):
+            print(f"{FAIL} {mac} is not a valid MAC address!")
+            exit(1)
+
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
@@ -638,11 +650,10 @@ if __name__ == "__main__":
         count = parseWithoutRadio(packets)
         print(f"{FINISHED} Parsed {count} frames!")
     else:
-        raw_pcap.close()
         print(f"{FAIL} Wrong link-layer header type. It should either be " \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
-    raw_pcap.close()
+    del packets
 
     # generate dot file and image file
     if args.split_graph:
