@@ -340,6 +340,10 @@ def processManagementFrame(frame, ts):
 def processDataFrame(frame, ts):
     src = frame.data_frame.src.hex(":").upper()
     dst = frame.data_frame.dst.hex(":").upper()
+    if len(only_mac) > 0:  # if there is a filter for mac
+        if (src not in only_mac) and (dst not in only_mac):
+            # doesn't pass filter
+            return
     delayed_frames["data"].append((ts, src, dst))
 
 
@@ -478,6 +482,10 @@ def addLegend(g):
             color=PROBE_RESP_C, fontcolor=PROBE_RESP_C, taillabel="probe resp")
 
 def generateGraph(args):
+    if len(G.nodes) == 0:
+        print(f"{FINISHED} The graph is empty... Cannot generate anything.")
+        exit(0)
+
     print(f"{ACTION} Generating {args.output}.{args.format} file...")
     generateNodesLabel(G)
 
@@ -491,6 +499,10 @@ def generateGraph(args):
 
 
 def generateMultipleGraphs(args):
+    if len(G.nodes) == 0:
+        print(f"{FINISHED} The graph is empty... Cannot generate anything.")
+        exit(0)
+
     if args.verbose:
         print(f"{INFO} Removing nodes without any edge...")
     G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
@@ -621,6 +633,7 @@ if __name__ == "__main__":
         if not mac_p.match(mac):
             print(f"{FAIL} {mac} is not a valid MAC address!")
             exit(1)
+
 
     try:
         raw_pcap = open(args.pcap, "rb")
