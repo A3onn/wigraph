@@ -566,7 +566,7 @@ if __name__ == "__main__":
         dest="no_probe", action="store_true")
     parser.add_argument(
         "--format", "-f", help="Output file's format.", dest="format",
-        choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz"],
+        choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "gif"],
         default="png", metavar="format")
     parser.add_argument("--only-mac", "-m", help="Filter for MAC addresses.",
         dest="only_mac", nargs='+', action="store",

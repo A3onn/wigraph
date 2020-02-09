@@ -1,6 +1,6 @@
 # WiGraph
 
-#### Simple program to graph what's happening in a PCAP containing IEEE802.11 frames.
+#### Simple program to draw what's happening in a PCAP containing IEEE802.11 frames.
 
 ## Table of contents
 
@@ -30,37 +30,31 @@ This will generate a PNG file containing the graph. If you want another format, 
 - png
 - jpg
 - gif
-- json
-- imap
-- cmapx
 - svg
 - svgz
 - pdf
 - dot (source file for GraphViz)
 - ps
-- fig
-
-Keep in mind that the output file generated was meant to be used with GraphViz to generate images, so for exemple, in the JSON format there is the color of each nodes.
 
 ### Splitting graph
 
-If your pcap file contains a lot of traffic, the output will be really big and will take a long time to generate. To avoid this, you can split the graph into subgraphs and generate a file for each subgraphs. To do this, you can use the `-s` argument:
+If your pcap file contains a lot of traffic, the image will be really big and will take a long time to generate. To avoid this, you can split the graph into subgraphs and generate an image for each subgraphs. To do this, you can use the `-s` argument:
 
 `./main.py -p <pcap file> -o <output name w/o extension> -s`
 
-This will generate each subgraphs __AND__ a file containing all nodes without edges : `<output name w/o extension>_alone_nodes.<format>`.
+This will generate each subgraphs __AND__ an image containing all nodes without edges : `<output name w/o extension>_alone_nodes.<format>`.
 
-If you don't want this file, you can add the `-a` argument.
+If you don't want to generate this file, you can add the `-a` argument.
 
 ### Output content
 
 If you don't want, for some reason, to parse _probe requests_, you can use the `-i` to ignore them.
-But if you just don't want them to be included in the output file, you can use the `-e` argument. They will be parsed but not included.
+But if you just don't want them to be draw, you can use the `-e` argument. They will be parsed but not drawn.
 
-By default the program tries to do an OUI lookup which takes some memory and some time, you can deactivate it by using the `-k` argument.
+By default the program tries to do an OUI lookup which takes some memory and some time, you can disable it by using the `-k` argument.
 
 
-This program uses GraphViz, and it uses by default _sfdp_. You can change it with `-g` argument followed by the name of the program :
+This program uses GraphViz and by default it uses _sfdp_. You can choose another program by using the `-g` argument followed by the name of the program :
 - dot
 - neato
 - twopi
@@ -70,6 +64,6 @@ This program uses GraphViz, and it uses by default _sfdp_. You can change it wit
 
 ### Filter
 
-You can filter frames by either their MAC addresses (works with the source and destination) with `-m` argument followed by one or multiple MAC addresses, or by their BSSID (works only with management frames) with the `-b` argument followed by one or multiple BSSIDs.
+You can filter frames by either their MAC addresses (works with the source and destination) with the `-m` argument followed by one or multiple MAC addresses seperated by spaces. You can filter by BSSID too with the `-b` argument followed by one or multiple BSSIDs seperated by spaces too.
 
 ## Disclamer
