@@ -538,7 +538,7 @@ def generateMultipleGraphs(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Create wifi graph from PCAP containing IEEE802.11 frames.")
+        description="Create graphs from pcaps containing IEEE802.11 frames.")
     parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True,
             metavar="PCAP")
     parser.add_argument(
@@ -553,16 +553,16 @@ if __name__ == "__main__":
         dest="no_probe", action="store_true")
     parser.add_argument(
         "--format", "-f", help="Output file's format.", dest="format",
-        choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "fig", "gif",
-                 "json", "imap", "cmapx"], default="png", metavar="format")
-    parser.add_argument("--only-mac", "-m", help="Filter for mac.",
-                        dest="only_mac", nargs='+', action="store",
-                        metavar="MACs")
+        choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz"],
+        default="png", metavar="format")
+    parser.add_argument("--only-mac", "-m", help="Filter for MAC addresses.",
+        dest="only_mac", nargs='+', action="store",
+        metavar="MACs")
     parser.add_argument("--no-legend", "-l", help="Don't draw the legend.",
-                        dest="no_legend", action="store_true")
-    parser.add_argument("--only-bssid", "-b", help="Filter for bssid.",
-                        dest="only_bssid", nargs='+', action="store",
-                        metavar="BSSIDs")
+        dest="no_legend", action="store_true")
+    parser.add_argument("--only-bssid", "-b", help="Filter for BSSIDs.",
+        dest="only_bssid", nargs='+', action="store",
+        metavar="BSSIDs")
     parser.add_argument(
         "--no-alone-graph", "-a",
         help="Don't generate graph holding nodes without edges. Works with -s.",
