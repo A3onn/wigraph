@@ -400,11 +400,18 @@ def parseWithRadio(pcap):
             continue
 
         if dot11.type == MGMT_TYPE:  # management frames
-            processManagementFrame(dot11, ts)
-            c += 1
+            # try catch because it is possible that a frame is incomplete
+            try:
+                processManagementFrame(dot11, ts)
+                c += 1
+            except:
+                pass
         elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11, ts)
-            c += 1
+            try: 
+                processDataFrame(dot11, ts)
+                c += 1
+            except:
+                pass
 
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
@@ -422,11 +429,18 @@ def parseWithoutRadio(pcap):
             continue
 
         if dot11.type == MGMT_TYPE:  # management frames
-            processManagementFrame(dot11, ts)
-            c += 1
+            # try catch because it is possible that a frame is incomplete
+            try: 
+                processManagementFrame(dot11, ts)
+                c += 1
+            except:
+                pass
         elif dot11.type == DATA_TYPE:
-            processDataFrame(dot11, ts)
-            c += 1
+            try: 
+                processDataFrame(dot11, ts)
+                c += 1
+            except:
+                pass
     if verbose:
         print(f"{INFO} Parsing delayed probe requests...")
     parseDelayedFrames()
