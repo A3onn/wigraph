@@ -37,7 +37,6 @@ LOGO = """
                           |
                           o
 """
-print(BANNER)
 G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
@@ -561,8 +560,8 @@ def generateMultipleGraphs(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Create graphs from pcaps containing IEEE802.11 frames.")
-    parser.add_argument("--pcap", "-p", help="PCAP to parse.", required=True,
-            metavar="PCAP")
+    parser.add_argument("--pcap", "-p", help="pcap/pcapng to parse.", required=True,
+            metavar="pcap")
     parser.add_argument(
         "--output", "-o", help="Name without extension of the output file.",
         dest="output", required=True, metavar="name")
@@ -577,32 +576,33 @@ if __name__ == "__main__":
         "--format", "-f", help="Output file's format.", dest="format",
         choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "gif"],
         default="png", metavar="format")
-    parser.add_argument("--only-mac", "-m", help="Filter for MAC addresses.",
+    parser.add_argument("--only-mac", "-m", help="Filter for MAC address. Separate them with space.",
         dest="only_mac", nargs='+', action="store",
         metavar="MACs")
-    parser.add_argument("--no-legend", "-l", help="Don't draw the legend.",
+    parser.add_argument("--no-legend", "-l", help="Don't add a legend.",
         dest="no_legend", action="store_true")
-    parser.add_argument("--only-bssid", "-b", help="Filter for BSSIDs.",
+    parser.add_argument("--only-bssid", "-b", help="Filter for BSSIDs. Separate them with space.",
         dest="only_bssid", nargs='+', action="store",
         metavar="BSSIDs")
     parser.add_argument(
         "--no-alone-graph", "-a",
-        help="Don't generate graph holding nodes without edges. Works with -s.",
+        help="Don't generate image containing nodes without edges. Works with -s.",
         dest="no_alone", action="store_true")
     parser.add_argument(
         "--split-graph", "-s", help="Split graph into multiple " \
         "files. This is useful when there is a lot of nodes.",
         dest="split_graph", action="store_true")
     parser.add_argument(
-        "--verbose", "-v", help="Verbose mode.",
+        "--verbose", "-v", help="Be verbose.",
         dest="verbose", action="store_true")
     parser.add_argument(
-        "--no-oui-lookup", "-k", help="Don't resolve MACs addresses.",
+        "--no-oui-lookup", "-k", help="Don't make OUI lookup for MAC addresses.",
         dest="no_oui_lookup", action="store_true")
     parser.add_argument(
-        "--graph", "-g", help="Graphviz filter to use", dest="graph",
+        "--graph", "-g", help="Graphviz program to use", dest="graph",
         choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
         default="sfdp", metavar="prog")
+    print(LOGO)
     args = parser.parse_args()
 
     ignore_probe_resp = args.no_probe
