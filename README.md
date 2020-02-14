@@ -36,7 +36,7 @@ If your pcap file contains a lot of traffic, the image will be really big and wi
 
 This will generate each subgraphs __AND__ an image containing all nodes without edges, if you don't want it, you can use the `-a` parameter.
 
-Even if you split the graph, images can be really big. You can choose to not draw probe request with the `-e` argument, the program will be able to split a bit more graphs. If you want to ignore all probe requests totally, you may use the `-i` argument.
+Even if you split the graph, images can be really big. You can choose to not draw probe responses with the `-e` argument, this will let the program able to split a bit more graphs. If you want to ignore all probe responses totally, you may use the `-i` argument.
 
 By default the program tries to do an OUI lookup. This may takes some memory and some time so you can disable it by using the `-k` argument.
 
