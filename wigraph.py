@@ -563,8 +563,9 @@ if __name__ == "__main__":
     parser.add_argument("--pcap", "-p", help="pcap/pcapng to parse.", required=True,
             metavar="pcap")
     parser.add_argument(
-        "--output", "-o", help="Name without extension of the output file.",
-        dest="output", required=True, metavar="name")
+        "--output", "-o", help="Name without extension of the output file(s)."
+        "This can used be used as a path to put the file(s) too (e.g. "
+        "../../test).", dest="output", required=True, metavar="name")
     parser.add_argument(
         "--ignore-probe-graph", "-e", help="Don't draw probe responses,"
         "but don't ignore them.",
@@ -611,7 +612,7 @@ if __name__ == "__main__":
 
     if not args.no_oui_lookup:
         try:
-            with open("oui.txt", "r") as f:
+            with open(os.path.dirname(os.path.realpath(__file__)) + "/oui.txt", "r") as f:
                 for line in f:
                     elements = line.strip().split("\t")
                     # MAC: NAME
