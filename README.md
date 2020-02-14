@@ -56,7 +56,8 @@ You can filter frames by either their MAC addresses (works with the source and d
 ## Exemple
 
 I think exemples are cool, but unfortunatly good and free PCAPs are not mainstream... So I will use a [sample from the Wireshark project](https://wiki.wireshark.org/SampleCaptures) called [wpa-Induction.pcap](https://wiki.wireshark.org/SampleCaptures?action=AttachFile&do=get&target=wpa-Induction.pcap). :D
-As this pcap doesn't have a lot of traffic, I will leave al by default:
+
+As this pcap doesn't have a lot of traffic, I will leave everything by default:
 
 ![generating image screenshot](img/induction_shell.png)
 
@@ -65,5 +66,5 @@ And this will give:
 
 ## Disclamer
 
-Sometime a node will be marked as a repeater. This means that the station has sent frames typically sent by an AP and some sent by a client. Most of the time it will be a repeater but sometimes false positif can occur, for exemple if a smartphone acts as a client (= sends probe requests, auth frames etc...) and later becomes an AP (= sends beacon frames).
+Sometime a node will be marked as a repeater (green node). This means that the station has sent frames typically sent by an AP and some sent by a client. Most of the time it will be a repeater but sometimes false positive can occur, for exemple if a smartphone acts as a client (= sends probe requests, auth frames etc...) and later becomes an AP (= sends beacon frames).
 
