@@ -153,9 +153,9 @@ class AP:
 
 
 class Client:
-    def __init__(self, ts, probe=""):
+    def __init__(self, ts, probe="", probed=False):
         # might add more attributes later
-        self.probes = [probe] if probe else []
+        self.probes = [probe if probe else "<Broadcast>"] if probed else []
         self.first_seen = ts
         self.last_seen = ts
         self.data_frames = 0
@@ -294,7 +294,7 @@ def processManagementFrame(frame, ts):
             G.nodes[src]["value"].beacons += 1
     elif frame.subtype == M_PROBE_REQ:
         addClient(src, Client(ts,
-            probe=frame.ssid.data.decode("utf-8", "ignore")))
+            probe=frame.ssid.data.decode("utf-8", "ignore"), probed=True))
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
         addClient(dst, Client(ts))
         addAP(src, AP(ts, bssid=bssid,
