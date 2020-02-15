@@ -59,7 +59,7 @@ I think exemples are cool, but unfortunatly good and free PCAPs are not mainstre
 
 As this pcap doesn't have a lot of traffic, I will leave everything by default:
 
-![generating image screenshot](img/induction_shell.png)
+`./wigraph.py -p wpa-Induction.pcap -o induction`
 
 And this will give:
 ![generated image](img/induction.png)
