@@ -62,6 +62,7 @@ As this pcap doesn't have a lot of traffic, I will leave everything by default:
 `./wigraph.py -p wpa-Induction.pcap -o induction`
 
 And this will give:
+
 ![generated image](img/induction.png)
 
 ## Disclamer
