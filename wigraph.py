@@ -53,7 +53,8 @@ delayed_frames = {
         "deauth": [],
         "disassoc": [],
         "action": [],
-        "data": []}
+        "data": [],
+        "ctl": []}
 
 # types of node
 AP_T = 0
@@ -355,48 +356,97 @@ def processDataFrame(frame, ts):
     delayed_frames["data"].append((ts, src, dst))
 
 
+def processControlFrame(frame, ts):
+    if frame.subtype == C_RTS:
+        delayed_frames["ctl"].append((ts, frame.rts.src.hex(":").upper()))
+    elif frame.subtype == C_BLOCK_ACK:
+        delayed_frames["ctl"].append((ts, frame.back.src.hex(":").upper()))
+    elif frame.subtype == C_BLOCK_ACK_REQ:
+        delayed_frames["ctl"].append((ts, frame.bar.src.hex(":").upper()))
+
+
 def parseDelayedFrames():
     if verbose:
+        print(f"{INFO} Handling delayed control frames.")
+    for frame in delayed_frames["ctl"]:
+        src = whatIs(frame[1])
+        ts = frame[0]
+
+        # update 'last seen' and 'first seen' of the src
+        if src == CLIENT_T:
+            addClient(frame[1], Client(ts))
+        elif src == AP_T:
+            addAP(frame[1], AP(ts))
+
+    if verbose:
         print(f"{INFO} Handling delayed deauthentification frames.")
-    for probe in delayed_frames["deauth"]:
-        src = whatIs(probe[1])
-        dst = whatIs(probe[2])
-        ts = probe[0]
+    for frame in delayed_frames["deauth"]:
+        src = whatIs(frame[1])
+        dst = whatIs(frame[2])
+        ts = frame[0]
+
+        # update 'last seen' and 'first seen' of the src
+        if src == CLIENT_T:
+            addClient(frame[1], Client(ts))
+        elif src == AP_T:
+            addAP(frame[1], AP(ts))
+
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=DEAUTH_C)
+                addEdge(frame[1], frame[2], color=DEAUTH_C)
             else:
-                addEdge(probe[1], probe[2], color=DEAUTH_C)
+                addEdge(frame[1], frame[2], color=DEAUTH_C)
     if verbose:
         print(f"{INFO} Handling delayed disassociation frames.")
-    for probe in delayed_frames["disassoc"]:
-        src = whatIs(probe[1])
-        dst = whatIs(probe[2])
-        ts = probe[0]
+    for frame in delayed_frames["disassoc"]:
+        src = whatIs(frame[1])
+        dst = whatIs(frame[2])
+        ts = frame[0]
+
+        # update 'last seen' and 'first seen' of the src
+        if src == CLIENT_T:
+            addClient(frame[1], Client(ts))
+        elif src == AP_T:
+            addAP(frame[1], AP(ts))
+
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=DISASSOC_C)
+                addEdge(frame[1], frame[2], color=DISASSOC_C)
             else:
-                addEdge(probe[1], probe[2], color=DISASSOC_C)
+                addEdge(frame[1], frame[2], color=DISASSOC_C)
     if verbose:
         print(f"{INFO} Handling delayed action frames.")
-    for probe in delayed_frames["action"]:
-        src = whatIs(probe[1])
-        dst = whatIs(probe[2])
-        ts = probe[0]
+    for frame in delayed_frames["action"]:
+        src = whatIs(frame[1])
+        dst = whatIs(frame[2])
+        ts = frame[0]
+
+        # update 'last seen' and 'first seen' of the src
+        if src == CLIENT_T:
+            addClient(frame[1], Client(ts))
+        elif src == AP_T:
+            addAP(frame[1], AP(ts))
+
         if src != UNKNOWN_T and dst != UNKNOWN_T:
             if src == AP_T:
-                addEdge(probe[1], probe[2], color=ACTION_C)
+                addEdge(frame[1], frame[2], color=ACTION_C)
             else:
-                addEdge(probe[1], probe[2], color=ACTION_C)
+                addEdge(frame[1], frame[2], color=ACTION_C)
     if verbose:
         print(f"{INFO} Handling delayed data frames.")
-    for probe in delayed_frames["data"]:
-        src = whatIs(probe[1])
-        dst = whatIs(probe[2])
-        ts = probe[0]
+    for frame in delayed_frames["data"]:
+        src = whatIs(frame[1])
+        dst = whatIs(frame[2])
+        ts = frame[0]
+
+        # update 'last seen' and 'first seen' of the src
+        if src == CLIENT_T:
+            addClient(frame[1], Client(ts))
+        elif src == AP_T:
+            addAP(frame[1], AP(ts))
+
         if src != UNKNOWN_T and dst != UNKNOWN_T:
-            addEdge(probe[1], probe[2], color=DATA_C)
+            addEdge(frame[1], frame[2], color=DATA_C)
 
 
 def parseWithRadio(pcap):
@@ -422,6 +472,12 @@ def parseWithRadio(pcap):
         elif dot11.type == DATA_TYPE:
             try: 
                 processDataFrame(dot11, ts)
+                c += 1
+            except:
+                pass
+        elif dot11.type == CTL_TYPE:
+            try:
+                processControlFrame(dot11, ts)
                 c += 1
             except:
                 pass
@@ -451,6 +507,12 @@ def parseWithoutRadio(pcap):
         elif dot11.type == DATA_TYPE:
             try: 
                 processDataFrame(dot11, ts)
+                c += 1
+            except:
+                pass
+        elif dot11.type == CTL_TYPE:
+            try:
+                processControlFrame(dot11, ts)
                 c += 1
             except:
                 pass
