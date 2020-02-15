@@ -588,7 +588,7 @@ def generateMultipleGraphs(args):
             G.remove_node(node)
     if not args.no_alone:  # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
-            print(f"{ACTION} Generating {args.output}_alone_nodes.dot file...")
+            print(f"{ACTION} Generating {args.output}_alone_nodes.{args.format} file...")
             generateNodesLabel(G_null)
 
             graph = nx.nx_agraph.to_agraph(G_null)
@@ -612,7 +612,7 @@ def generateMultipleGraphs(args):
 
         if not args.no_legend:
             addLegend(sub)
-        print(f"{ACTION} Generating {args.output}_{i}.dot file...")
+        print(f"{ACTION} Generating {args.output}_{i}.{args.format} file...")
         graph = nx.nx_agraph.to_agraph(sub)
         graph.draw(f"{args.output}_{i}.{args.format}", prog=args.graph)
 
