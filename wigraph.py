@@ -682,7 +682,7 @@ if __name__ == "__main__":
                     no_oui_lookup = False
         except FileNotFoundError:
             print(f"{FAIL} Impossible to open oui.txt, please put this file "
-                    "in the same directory as this file: "
+                    "in this directory: "
                     f"{os.path.dirname(os.path.realpath(__file__))}. "
                     "Quitting.")
             exit(1)
@@ -706,11 +706,10 @@ if __name__ == "__main__":
             print(f"{FAIL} {mac} is not a valid MAC address!")
             exit(1)
 
-
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
-        print(f"{FAIL} No file found: {args.pcap}")
+        print(f"{FAIL} File not found: {args.pcap}")
         exit(1)
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
@@ -719,6 +718,7 @@ if __name__ == "__main__":
             pcap = dpkt.pcap.Reader(raw_pcap)
     except BaseException:
         print(f"{FAIL} An error occured while reading {args.pcap}.")
+        raw_pcap.close()
         exit(1)
 
     if verbose:
@@ -738,7 +738,7 @@ if __name__ == "__main__":
         print(f"{FAIL} Wrong link-layer header type. It should either be " \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
-    del packets
+    del packets  # free some space
 
     # generate dot file and image file
     if args.split_graph:
