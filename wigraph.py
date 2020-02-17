@@ -28,15 +28,6 @@ import textwrap
 
 
 # CONSTANTS
-LOGO = """
- \033[34mo\033[0m       \033[34mo\033[0m \033[34mo\033[0m  \033[34mo\033[0m-\033[91mo\033[0m               \033[34mo\033[0m
- |       |   \033[91mo\033[0m                  |
- \033[91mo\033[0m   \033[91mo\033[0m   \033[91mo\033[0m \033[34mo\033[0m | \033[34mo\033[0m \033[34mo\033[0m \033[91mo\033[0m-\033[34mo\033[0m  oo o-o  \033[91mo\033[0m--\033[34mo\033[0m
-  \ / \ /  | \033[34mo\033[0m   | |   | | |  | |
-   \033[34mo\033[0m   \033[34mo\033[0m   \033[91mo\033[0m  \033[34mo\033[0m--\033[91mo\033[0m \033[34mo\033[0m   o-o-O-o  \033[34mo\033[0m  \033[34mo\033[0m
-                           |
-                           o
-"""
 G = nx.MultiDiGraph()
 
 ignore_probe_resp = False
@@ -665,7 +656,6 @@ if __name__ == "__main__":
         "--graph", "-g", help="Graphviz program to use", dest="graph",
         choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
         default="sfdp", metavar="prog")
-    print(LOGO)
     args = parser.parse_args()
 
     ignore_probe_resp = args.no_probe
