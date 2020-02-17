@@ -64,4 +64,4 @@ Sometime a node will be marked as a repeater (green node). This means that the s
 ## Note
 
 WiGraph is 100% passive, this means it doesn't send __ANY__ frame or packet.
-Furthermore this program can easely be used in a script because it doesn't require any intervention once it is run
+Furthermore this program can easely be used in a script because it doesn't require any manual intervention once it is run.
