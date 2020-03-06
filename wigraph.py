@@ -106,25 +106,7 @@ class AP:
             f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
-    def __mod__(self, other):
-        """
-        Can now use the % operator to add missing parts of an instance
-        by creating another instance with some attirbutes set (= other)
-        and getting these attributes and add them into this instance:
-        a = AP(ts, ssid="ap 1", bssid="11:22:33:44:55:66")
-        ...
-        some code
-        ...
-        a % AP(ts, ch=5) # This will change the ch attribute to 5
-
-        Mind you that Ap(ts, ch=5) is "disposable", it is only used when
-        modifying another existing AP instance.
-
-        I use this weird method because it is simple to implement and
-        relatively efficient. You can see it as a replacement for dict
-        and spaghetti code to change values in these dicts
-        """
-
+    def update(self, other):
         if not isinstance(other, AP):
             raise TypeError()
 
@@ -165,7 +147,7 @@ class Client:
         ret += f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
         return ret
 
-    def __mod__(self, other):
+    def update(self, other):
         if not isinstance(other, Client):
             raise TypeError()
 
@@ -236,7 +218,7 @@ def addAP(mac, ap):
             # check if it's already been marked as a repeater
             return
         try:
-            G.nodes[mac]["value"] % ap
+            G.nodes[mac]["value"]update(ap)
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
@@ -253,7 +235,7 @@ def addClient(mac, client):
             # check if it's already been marked as a repeater
             return
         try:
-            G.nodes[mac]["value"] % client
+            G.nodes[mac]["value"]update(client)
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
