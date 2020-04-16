@@ -550,6 +550,14 @@ def generateGraph(args):
         print(f"{FINISHED} The graph is empty... Cannot generate anything.")
         exit(0)
 
+    if args.no_alone_nodes: # remove nodes without edges
+        # need a copy because some nodes in the original graph will be removed, act like as an iterator
+        nodes = list(G.nodes)
+
+        for node in nodes:
+            if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0:  # if this node doesn't have any edge
+                G.remove_node(node)
+
     print(f"{ACTION} Generating {args.output}.{args.format} file...")
     generateNodesLabel(G)
 
@@ -572,7 +580,7 @@ def generateMultipleGraphs(args):
 
     G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
 
-    # need a copy because some nodes in the original graph will be removed
+    # need a copy because some nodes in the original graph will be removed, act like as an iterator
     nodes = list(G.nodes)
 
     for node in nodes:
@@ -645,6 +653,10 @@ if __name__ == "__main__":
         "--no-alone-graph", "-a",
         help="Don't generate image containing nodes without edges. Works with -s.",
         dest="no_alone", action="store_true")
+    parser.add_argument(
+        "--no-alone-nodes", "-n",
+        help="Remove nodes without edges. Works without --split-graph, otherwise use --no-alone-graph.",
+        dest="no_alone_nodes", action="store_true")
     parser.add_argument(
         "--split-graph", "-s", help="Split graph into multiple " \
         "files. This is useful when there is a lot of nodes.",
