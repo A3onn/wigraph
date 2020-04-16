@@ -19,6 +19,11 @@ try:
 except ModuleNotFoundError:
     print(f"{FAIL} This program require networkx. Please install it.")
     exit(1)
+try:
+    import pygraphviz # used by networkx to output the graph
+except ModuleNotFoundError:
+    print(f"{FAIL} This program require pygraphviz. Please install it.")
+    exit(1)
 import argparse
 import os
 import re
@@ -30,6 +35,7 @@ import textwrap
 # CONSTANTS
 G = nx.MultiDiGraph()
 
+# settings
 ignore_probe_resp = False
 no_probe_graph = False
 verbose = False
@@ -38,8 +44,8 @@ only_bssid = tuple()
 no_oui_lookup = True
 oui_content = {}
 
-# cannot get any idea who's sending and who's receiving, so we have to wait
-# the parsing to finish to add the edges
+# cannot get, with these frames, if the source is an AP or a client and same thing for the destination,
+# so we have to wait the parsing to finish to add the edges
 delayed_frames = {
         "deauth": [],
         "disassoc": [],
@@ -82,6 +88,9 @@ class AP:
         self.last_seen = ts
 
     def __str__(self):
+        # this function will be used when adding text in nodes when generating
+        # the graph
+
         ret = ""
         if self.bssid:
             ret += f"bssid: {self.bssid}\n"
@@ -123,13 +132,13 @@ class AP:
             self.rates = other.rates
 
         self.last_seen = other.first_seen
-        # could be other.last_seen, as other is "disposable"
+        # could be other.last_seen, as other is juste used here
 
 
 class Client:
     def __init__(self, ts, probe="", probed=False):
         # might add more attributes later
-        self.probes = [probe if probe else "<Broadcast>"] if probed else []
+        self.probes = [probe if probe else "<Broadcast>"] if probed else [] # list of probes
         self.first_seen = ts
         self.last_seen = ts
         self.data_frames = 0
@@ -169,9 +178,9 @@ def toRates(raw):
     optional = []
     mandatory = []
     for b in raw:
-        if b > 127:
-            if b - 127 in rates:
-                mandatory.append(rates[b-127])
+        if b & (1 << 7) == (1 << 7):
+            if b - (1 << 7)  in rates:
+                mandatory.append(rates[b-(1 << 7)])
         else:
             if b in rates:
                 optional.append(rates[b])
@@ -218,7 +227,7 @@ def addAP(mac, ap):
             # check if it's already been marked as a repeater
             return
         try:
-            G.nodes[mac]["value"]update(ap)
+            G.nodes[mac]["value"].update(ap)
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
@@ -235,7 +244,7 @@ def addClient(mac, client):
             # check if it's already been marked as a repeater
             return
         try:
-            G.nodes[mac]["value"]update(client)
+            G.nodes[mac]["value"].update(client)
         except TypeError:
             if verbose:
                 print(f"{INFO} Marked {mac} as a repeater")
@@ -243,8 +252,9 @@ def addClient(mac, client):
 
 
 def processManagementFrame(frame, ts):
-    # some frames are delayed because either we cannot guess what is sending
-    # it or what is receiving it
+    # some frames are delayed because it is not possible to know
+    # what sent it or what is the receiver, but it might be possible
+    # once the parsing is finished
     src = frame.mgmt.src.hex(":").upper()
     dst = frame.mgmt.dst.hex(":").upper()
     bssid = frame.mgmt.bssid.hex(":").upper()
@@ -259,34 +269,38 @@ def processManagementFrame(frame, ts):
             return
 
     if frame.subtype == M_BEACON:
-        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode(
-            "utf-8", "ignore"), ch=frame.ds.ch,
-            rates=toRates(frame.rate.data)))
+        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"),
+            ch=frame.ds.ch, rates=toRates(frame.rate.data)))
+
         if whatIs(src) == AP_T:
             # check if src hasn't been put as a repeater and
             # add a beacon manually
             G.nodes[src]["value"].beacons += 1
+
     elif frame.subtype == M_PROBE_REQ:
-        addClient(src, Client(ts,
-            probe=frame.ssid.data.decode("utf-8", "ignore"), probed=True))
+        addClient(src, Client(ts, probe=frame.ssid.data.decode("utf-8", "ignore"), probed=True))
+
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
         addClient(dst, Client(ts))
-        addAP(src, AP(ts, bssid=bssid,
-                      ssid=frame.ssid.data.decode("utf-8", "ignore"),
+        addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       ch=frame.ds.ch, rates=toRates(frame.rate.data)))
+
         if not no_probe_graph:
             addEdge(src, dst, color=PROBE_RESP_C)
+
     elif frame.subtype == M_ASSOC_REQ:
         addAP(dst, AP(ts, ssid=frame.ssid.data.decode("utf-8", "ignore"),
                       bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(src, Client(ts))
 
         addEdge(src, dst, color=ASSOC_C)
+
     elif frame.subtype == M_ASSOC_RESP:
         addAP(src, AP(ts, rates=toRates(frame.rate.data), bssid=bssid))
         addClient(dst, Client(ts))
 
         addEdge(src, dst, color=ASSOC_C)
+
     elif frame.subtype == M_REASSOC_REQ:
         current_ap = frame.reassoc_req.current_ap.hex(":")
         if current_ap != bssid:  # meaning the client wants to reconnect
@@ -294,18 +308,21 @@ def processManagementFrame(frame, ts):
         addClient(src, Client(ts))
 
         addEdge(src, dst, color=REASSOC_C)
+
     elif frame.subtype == M_REASSOC_RESP:
         addAP(src, AP(ts, bssid=bssid, rates=toRates(frame.rate.data)))
         addClient(dst, Client(ts))
 
         addEdge(src, dst, color=REASSOC_C)
+
     elif frame.subtype == M_AUTH:
-        if frame.auth.auth_seq == 256:  # CLIENT -> AP
+        # for some reason, auth_seq are in little endian instead of big
+        if frame.auth.auth_seq == (1 << 8):  # CLIENT -> AP
             addAP(dst, AP(ts, bssid=bssid))
             addClient(src, Client(ts))
 
             addEdge(src, dst, color=AUTH_C)
-        elif frame.auth.auth_seq == 512:  # AP -> CLIENT
+        elif frame.auth.auth_seq == (1 << 9):  # AP -> CLIENT
             addAP(src, AP(ts, bssid=bssid))
             addClient(dst, Client(ts))
 
@@ -443,12 +460,14 @@ def parseWithRadio(pcap):
             except:
                 pass
         elif dot11.type == DATA_TYPE:
+            # try catch because it is possible that a frame is incomplete
             try: 
                 processDataFrame(dot11, ts)
                 c += 1
             except:
                 pass
         elif dot11.type == CTL_TYPE:
+            # try catch because it is possible that a frame is incomplete
             try:
                 processControlFrame(dot11, ts)
                 c += 1
@@ -478,12 +497,14 @@ def parseWithoutRadio(pcap):
             except:
                 pass
         elif dot11.type == DATA_TYPE:
+            # try catch because it is possible that a frame is incomplete
             try: 
                 processDataFrame(dot11, ts)
                 c += 1
             except:
                 pass
         elif dot11.type == CTL_TYPE:
+            # try catch because it is possible that a frame is incomplete
             try:
                 processControlFrame(dot11, ts)
                 c += 1
@@ -548,17 +569,17 @@ def generateMultipleGraphs(args):
 
     if args.verbose:
         print(f"{INFO} Removing nodes without any edge...")
+
     G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
+
     # need a copy because some nodes in the original graph will be removed
     nodes = list(G.nodes)
+
     for node in nodes:
-        if len(G.in_edges(node)) == 0 and len(G.out_edges(
-                node)) == 0:  # if this node doesn't have any edge
-            G_null.add_node(
-                node,
-                value=G.nodes[node]["value"],
-                type=G.nodes[node]["type"])
+        if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0:  # if this node doesn't have any edge
+            G_null.add_node(node, value=G.nodes[node]["value"], type=G.nodes[node]["type"])
             G.remove_node(node)
+
     if not args.no_alone:  # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
             print(f"{ACTION} Generating {args.output}_alone_nodes.{args.format} file...")
@@ -577,7 +598,7 @@ def generateMultipleGraphs(args):
                         f"{args.output}.{args.format} because it's empty.")
 
     print(f"{ACTION} Generating all subgraphs...")
-    for i, g in enumerate(list(nx.weakly_connected_components(G))):
+    for num_graph, g in enumerate(list(nx.weakly_connected_components(G))):
         # there is no alone nodes as they were removed
 
         sub = nx.MultiDiGraph(G.subgraph(g))
@@ -585,11 +606,11 @@ def generateMultipleGraphs(args):
 
         if not args.no_legend:
             addLegend(sub)
-        print(f"{ACTION} Generating {args.output}_{i}.{args.format} file...")
+        print(f"{ACTION} Generating {args.output}_{num_graph}.{args.format} file...")
         graph = nx.nx_agraph.to_agraph(sub)
-        graph.draw(f"{args.output}_{i}.{args.format}", prog=args.graph)
+        graph.draw(f"{args.output}_{num_graph}.{args.format}", prog=args.graph)
 
-        print(f"{FINISHED} {args.output}_{i}.{args.format} generated!")
+        print(f"{FINISHED} {args.output}_{num_graph}.{args.format} generated!")
 
 
 if __name__ == "__main__":
