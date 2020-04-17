@@ -78,7 +78,7 @@ DATA_C = "#000000"
 
 # CLASSES
 class AP:
-    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[]):
+    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[], enc="", auth="", cipher=""):
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
@@ -86,6 +86,9 @@ class AP:
         self.beacons = 0
         self.first_seen = ts
         self.last_seen = ts
+        self.enc = enc
+        self.auth = auth
+        self.cipher = cipher
 
     def __str__(self):
         # this function will be used when adding text in nodes when generating
@@ -100,6 +103,15 @@ class AP:
 
         if self.ch != -1:
             ret += f"channel: {self.ch}\n"
+        
+        if self.enc:
+            ret += f"enc: {self.enc}\n"
+            
+        if self.auth:
+            ret += f"auth: {self.auth}\n"
+            
+        if self.cipher:
+            ret += f"cipher: {self.cipher}\n"
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
@@ -124,7 +136,18 @@ class AP:
 
         if not self.ssid and other.ssid:
             self.ssid = other.ssid
-
+            
+        if not self.enc and other.enc:
+            self.enc = other.enc
+            
+        if not self.auth and other.auth:
+            self.auth = other.auth
+            
+        if not self.cipher and other.cipher:
+            self.cipher = other.cipher
+            
+            
+            
         if self.ch == -1 and other.ch != -1:
             self.ch = other.ch
 
@@ -212,6 +235,85 @@ def whatIs(mac):
     return UNKNOWN_T
 
 
+def getSecurity(frame):
+    # taken from: https://github.com/aircrack-ng/aircrack-ng/blob/master/src/airodump-ng/airodump-ng.c#L2093
+    # note that in airodump-ng, the data contains the tag and the length of the ie, here not so each value
+    # used as a padding had -2.
+    # returns (enc, auth, cipher)
+    enc = ""
+    cipher = ""
+    auth = ""
+    for ie in frame.ies:
+        if (ie.id == 0x30 or ie.id == 0xDD) and ie.len >= 8: # RSN or WPA
+            offset = 0
+
+            if ie.id == 0x30: # RNS tag
+                enc = "WPA2"
+            elif ie.id == 0xDD and ie.data[0:6] == b"\x00\x50\xF2\x01\x01\x00": # vendor tag for WPA
+                enc = "WPA"
+                offset = 4
+            else: # if not RSN not vendor tag with WPA
+                break
+                    
+            if ie.len < 16 + offset:
+                break
+            if 7 + offset > ie.len:
+                break
+                
+            count_cipher_suites = ie.data[6 + offset] + (ie.data[7 + offset] << 8)
+
+            if (11 + offset) + (4 * count_cipher_suites) > ie.len:
+                break
+            count_AKM_suites = ie.data[(8 + offset) + 4 * count_cipher_suites] + (ie.data[(9 + offset) + 4 * count_cipher_suites] << 8)
+                
+            if ie.id != 0x30:
+                if (4 * count_cipher_suites) + (4 * count_AKM_suites) > ie.len:
+                    break
+            else:
+                if (4 * count_cipher_suites) + (4 * count_AKM_suites) + 2 > ie.len:
+                    break
+
+            base = 8 + offset
+            for i in range(count_cipher_suites): # list of cipher suites
+                cip = ie.data[i * 4 + 3 + base]
+                if cip == 0x01:
+                    cipher += "WEP"
+                elif cip == 0x02:
+                    cipher += "TKIP"
+                elif cip == 0x03:
+                    cipher += "WRAP"
+                elif cip == 0x0A or cip == 0x4:
+                    cipher += "CCMP"
+                    enc = "WPA2"
+                elif cip == 0x05:
+                    cipher += "WEP104"
+                elif cip == 0x08 or cip == 0x9:
+                    cipher += "GCMP"
+                    enc = "WPA2"
+                elif cip == 0x0B or cip == 0xC:
+                    cipher += "GMAC"
+                    enc = "WPA2"
+                cipher += ", " if i != count_cipher_suites-1 else ""
+
+
+            base += 2 + 4 * count_cipher_suites;
+            for i in range(count_AKM_suites): # list of akm suites
+                akm = ie.data[i * 4 + 3 + base]
+
+                if akm == 0x1:
+                    auth += "MGT"
+                elif akm == 0x2:
+                    auth += "PSK"
+                elif akm == 0x6 or akm == 0xd:
+                    auth += "CMAC"
+                elif akm == 0x8:
+                    auth += "SAE"
+                elif akm == 0x12:
+                    auth += "OWE"
+                auth += ", " if i != count_AKM_suites-1 else ""
+    return (enc, auth, cipher)
+
+
 def addEdge(src, dst, color):
     if not G.has_edge(src, dst, key=color):
         G.add_edge(src, dst, color=color, key=color)
@@ -269,8 +371,9 @@ def processManagementFrame(frame, ts):
             return
 
     if frame.subtype == M_BEACON:
+        sec = getSecurity(frame)
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"),
-            ch=frame.ds.ch, rates=toRates(frame.rate.data)))
+            ch=frame.ds.ch, rates=toRates(frame.rate.data), enc=sec[0], auth=sec[1], cipher=sec[2]))
 
         if whatIs(src) == AP_T:
             # check if src hasn't been put as a repeater and
@@ -281,9 +384,10 @@ def processManagementFrame(frame, ts):
         addClient(src, Client(ts, probe=frame.ssid.data.decode("utf-8", "ignore"), probed=True))
 
     elif frame.subtype == M_PROBE_RESP and not ignore_probe_resp:
+        sec = getSecurity(frame)
         addClient(dst, Client(ts))
         addAP(src, AP(ts, bssid=bssid, ssid=frame.ssid.data.decode("utf-8", "ignore"),
-                      ch=frame.ds.ch, rates=toRates(frame.rate.data)))
+                      ch=frame.ds.ch, rates=toRates(frame.rate.data), enc=sec[0], auth=sec[1], cipher=sec[2]))
 
         if not no_probe_graph:
             addEdge(src, dst, color=PROBE_RESP_C)
