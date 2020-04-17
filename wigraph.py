@@ -78,7 +78,7 @@ DATA_C = "#000000"
 
 # CLASSES
 class AP:
-    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[], enc="", auth="", cipher=""):
+    def __init__(self, ts, bssid="", ssid="", ch=-1, rates=[], enc="", auth=[], cipher=[]):
         self.bssid = bssid
         self.ssid = ssid
         self.ch = ch
@@ -108,10 +108,10 @@ class AP:
             ret += f"enc: {self.enc}\n"
             
         if self.auth:
-            ret += f"auth: {self.auth}\n"
+            ret += f"auth: {', '.join(self.auth)}\n"
             
         if self.cipher:
-            ret += f"cipher: {self.cipher}\n"
+            ret += f"cipher: {', '.join(self.cipher)}\n"
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
@@ -139,14 +139,14 @@ class AP:
             
         if not self.enc and other.enc:
             self.enc = other.enc
+        
+        for a in other.auth:
+            if a not in self.auth:
+                self.auth.append(a)
             
-        if not self.auth and other.auth:
-            self.auth = other.auth
-            
-        if not self.cipher and other.cipher:
-            self.cipher = other.cipher
-            
-            
+        for c in other.cipher:
+            if c not in self.cipher:
+                self.cipher.append(c)
             
         if self.ch == -1 and other.ch != -1:
             self.ch = other.ch
@@ -241,8 +241,8 @@ def getSecurity(frame):
     # used as a padding had -2.
     # returns (enc, auth, cipher)
     enc = ""
-    cipher = ""
-    auth = ""
+    cipher = []
+    auth = []
     for ie in frame.ies:
         if (ie.id == 0x30 or ie.id == 0xDD) and ie.len >= 8: # RSN or WPA
             offset = 0
@@ -277,23 +277,22 @@ def getSecurity(frame):
             for i in range(count_cipher_suites): # list of cipher suites
                 cip = ie.data[i * 4 + 3 + base]
                 if cip == 0x01:
-                    cipher += "WEP"
+                    cipher.append("WEP")
                 elif cip == 0x02:
-                    cipher += "TKIP"
+                    cipher.append("TKIP")
                 elif cip == 0x03:
-                    cipher += "WRAP"
+                    cipher.append("WRAP")
                 elif cip == 0x0A or cip == 0x4:
-                    cipher += "CCMP"
+                    cipher.append("CCMP")
                     enc = "WPA2"
                 elif cip == 0x05:
-                    cipher += "WEP104"
+                    cipher.append("WEP104")
                 elif cip == 0x08 or cip == 0x9:
-                    cipher += "GCMP"
+                    cipher.append("GCMP")
                     enc = "WPA2"
                 elif cip == 0x0B or cip == 0xC:
-                    cipher += "GMAC"
+                    cipher.append("GMAC")
                     enc = "WPA2"
-                cipher += ", " if i != count_cipher_suites-1 else ""
 
 
             base += 2 + 4 * count_cipher_suites;
@@ -301,16 +300,19 @@ def getSecurity(frame):
                 akm = ie.data[i * 4 + 3 + base]
 
                 if akm == 0x1:
-                    auth += "MGT"
+                    auth.append("MGT")
                 elif akm == 0x2:
-                    auth += "PSK"
+                    auth.append("PSK")
                 elif akm == 0x6 or akm == 0xd:
-                    auth += "CMAC"
+                    auth.append("CMAC")
                 elif akm == 0x8:
-                    auth += "SAE"
+                    auth.append("SAE")
                 elif akm == 0x12:
-                    auth += "OWE"
-                auth += ", " if i != count_AKM_suites-1 else ""
+                    auth.append("OWE")
+
+    # remove duplicates
+    auth = list(dict.fromkeys(auth))
+    cipher = list(dict.fromkeys(cipher))
     return (enc, auth, cipher)
 
 
@@ -814,11 +816,13 @@ if __name__ == "__main__":
         if not mac_p.match(mac):
             print(f"{FAIL} {mac} is not a valid MAC address!")
             exit(1)
+    only_mac = list(map(str.upper, only_mac)) # upper all MACs
+    only_bssid = list(map(str.upper, only_bssid)) # upper all bssids
 
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
-        print(f"{FAIL} File not found: {args.pcap}")
+        (f"{FAIL} File not found: {args.pcap}")
         exit(1)
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
