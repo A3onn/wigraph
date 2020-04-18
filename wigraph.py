@@ -309,7 +309,11 @@ def getSecurity(frame):
                     auth.append("SAE")
                 elif akm == 0x12:
                     auth.append("OWE")
-
+    if not enc:
+        if frame.capability.privacy:
+            enc = "WEP"
+        else:
+            enc = "OPEN"
     # remove duplicates
     auth = list(dict.fromkeys(auth))
     cipher = list(dict.fromkeys(cipher))
