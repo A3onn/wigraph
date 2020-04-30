@@ -42,6 +42,8 @@ If your pcap file contains a lot of traffic, the image will be really big and wi
 
 This will generate each subgraphs __AND__ an image containing all nodes without edges, if you don't want it, you can use the `-a` parameter.
 
+Otherwise, you can use the `-n` parameter to remove all nodes without any edge and keep everything in one image, but keep in mind that the final image may stil be large.
+
 Even if you split the graph, images can be really big. You can choose to not draw probe responses with the `-e` argument, this will let the program able to split a bit more graphs. If you want to ignore all probe responses totally, you may use the `-i` argument.
 
 WiGraph uses [GraphViz](https://graphviz.org/) to generate images. The default used program is _sfdp_. You can choose another program by using the `-g` argument followed by the name of the program :
@@ -61,7 +63,7 @@ You can filter by BSSID as well with the `-b` argument followed by one or multip
 
 ## Disclamer
 
-Sometime a node will be marked as a repeater (green node). This means that the station has sent frames typically sent by an AP and some sent by a client. Most of the time it will be a repeater but sometimes false positive can occur, for exemple if a smartphone acts as a client (= sends probe requests, auth frames etc...) and later becomes an AP (= sends beacon frames).
+Sometime a node will be marked as a repeater (green node). This means that the station has sent frames typically sent by an AP and some sent by a client. Most of the time it will be a repeater but sometimes it can be a phone switching from client to hotspot or _vice-versa_.
 
 ## Note
 
