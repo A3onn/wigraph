@@ -1,6 +1,6 @@
 # WiGraph
 
-![Wigraph logo](Wigraph.png)
+![Wigraph logo](logos/medium.png)
 
 #### A simple to use program to visualise what's happening in a PCAP containing IEEE802.11 frames.
 
