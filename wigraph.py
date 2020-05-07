@@ -9,8 +9,11 @@ FAIL = "\033[91m[X]\033[0m"
 
 # IMPORTS
 try:
-    from dpkt.ieee80211 import * # avoid typing: dpkt.ieee802.11.M_BEACON, etc...
-    import dpkt
+    from dpkt.ieee80211 import *
+    from dpkt.radiotap import Radiotap
+    from dpkt.dpkt import UnpackError
+    from dpkt.pcapng import Reader as pcapng_Reader
+    from dpkt.pcap import DLT_IEEE802_11_RADIO,DLT_IEEE802_11, Reader as pcap_Reader
 except ModuleNotFoundError:
     print("{} This program require dpkt. Please install it.".format(FAIL))
     exit(1)
@@ -555,9 +558,9 @@ def parseWithRadio(pcap):
     c = 0
     for ts, buf in pcap:
         try:
-            radio_tap = dpkt.radiotap.Radiotap(buf)
+            radio_tap = Radiotap(buf)
             dot11 = radio_tap.data
-        except dpkt.dpkt.UnpackError:
+        except UnpackError:
             continue
 
         if not isinstance(dot11, IEEE80211):
@@ -588,7 +591,7 @@ def parseWithoutRadio(pcap):
     for ts, buf in pcap:
         try:
             dot11 = IEEE80211(buf)
-        except dpkt.dpkt.UnpackError:
+        except UnpackError:
             continue
 
         if dot11.type == MGMT_TYPE:
@@ -813,9 +816,9 @@ if __name__ == "__main__":
         exit(1)
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
-            pcap = dpkt.pcapng.Reader(raw_pcap)
+            pcap = pcapng_Reader(raw_pcap)
         else:
-            pcap = dpkt.pcap.Reader(raw_pcap)
+            pcap = pcap_Reader(raw_pcap)
     except ValueError as e:
         print("{} An error occured while reading {} : {}".format(FAIL, args.pcap, e))
         raw_pcap.close()
@@ -826,11 +829,11 @@ if __name__ == "__main__":
     packets = pcap.readpkts()
     raw_pcap.close()
 
-    if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
+    if pcap.datalink() == DLT_IEEE802_11_RADIO:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithRadio(packets)
         print("{} Parsed {} frames!".format(FINISHED, count))
-    elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
+    elif pcap.datalink() == DLT_IEEE802_11:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithoutRadio(packets)
         print("{} Parsed {} frames!".format(FINISHED, count))
