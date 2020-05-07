@@ -34,7 +34,7 @@ import textwrap
 
 
 # CONSTANTS
-G = nx.MultiDiGraph()
+G = nx.MultiDiGraph() # graph containing all nodes during the parsing
 
 # settings
 ignore_probe_resp = False
@@ -308,7 +308,7 @@ def getSecurity(frame):
                     auth.append("SAE")
                 elif akm == 0x12:
                     auth.append("OWE")
-    if not enc:
+    if not enc and frame.subtype in FRAMES_WITH_CAPABILITY:
         if frame.capability.privacy:
             enc = "WEP"
         else:
@@ -361,7 +361,7 @@ def addClient(mac, client):
 def processManagementFrame(frame, ts):
     # some frames are delayed because it is not possible to know
     # what sent it or what is the receiver, but it might be possible
-    # once the parsing is finished
+    # after going through all the frames in the pcap
     src = frame.mgmt.src.hex(":").upper()
     dst = frame.mgmt.dst.hex(":").upper()
     bssid = frame.mgmt.bssid.hex(":").upper()
@@ -557,7 +557,7 @@ def parseWithRadio(pcap):
         try:
             radio_tap = dpkt.radiotap.Radiotap(buf)
             dot11 = radio_tap.data
-        except Exception:
+        except dpkt.dpkt.UnpackError:
             continue
 
         if not isinstance(dot11, IEEE80211):
@@ -565,26 +565,14 @@ def parseWithRadio(pcap):
             continue
 
         if dot11.type == MGMT_TYPE:  # management frames
-            # try catch because it is possible that a frame is incomplete
-            try:
-                processManagementFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+            processManagementFrame(dot11, ts)
+            c += 1
         elif dot11.type == DATA_TYPE:
-            # try catch because it is possible that a frame is incomplete
-            try: 
-                processDataFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+            processDataFrame(dot11, ts)
+            c += 1
         elif dot11.type == CTL_TYPE:
-            # try catch because it is possible that a frame is incomplete
-            try:
-                processControlFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+            processControlFrame(dot11, ts)
+            c += 1
 
     if verbose:
         print("{} Parsing delayed frames...".format(INFO))
@@ -600,30 +588,19 @@ def parseWithoutRadio(pcap):
     for ts, buf in pcap:
         try:
             dot11 = IEEE80211(buf)
-        except Exception:
+        except dpkt.dpkt.UnpackError:
             continue
 
-        if dot11.type == MGMT_TYPE:  # management frames
-            # try catch because it is possible that a frame is incomplete
-            try: 
-                processManagementFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+        if dot11.type == MGMT_TYPE:
+            processManagementFrame(dot11, ts)
+            c += 1
         elif dot11.type == DATA_TYPE:
-            # try catch because it is possible that a frame is incomplete
-            try: 
-                processDataFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+            processDataFrame(dot11, ts)
+            c += 1
         elif dot11.type == CTL_TYPE:
-            # try catch because it is possible that a frame is incomplete
-            try:
-                processControlFrame(dot11, ts)
-                c += 1
-            except:
-                pass
+            processControlFrame(dot11, ts)
+            c += 1
+
     if verbose:
         print("{INFO} Parsing delayed probe requests...".format(INFO))
     parseDelayedFrames()
@@ -839,8 +816,8 @@ if __name__ == "__main__":
             pcap = dpkt.pcapng.Reader(raw_pcap)
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
-    except BaseException:
-        print("{} An error occured while reading {}.".format(FAIL, args.pcap))
+    except ValueError as e:
+        print("{} An error occured while reading {} : {}".format(FAIL, args.pcap, e))
         raw_pcap.close()
         exit(1)
 
