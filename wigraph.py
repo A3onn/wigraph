@@ -28,11 +28,11 @@ except ModuleNotFoundError:
     print("{} This program require pygraphviz. Please install it.".format(FAIL))
     exit(1)
 
-import argparse
+from argparse import ArgumentParser
+from functools import lru_cache
 import os
 import re
 import time
-from functools import lru_cache
 import textwrap
 
 
@@ -46,7 +46,7 @@ verbose = False
 only_mac = tuple()
 only_bssid = tuple()
 no_oui_lookup = True
-oui_content = {}
+oui_table = {}
 
 # cannot get, with these frames, if the source is an AP or a client and same thing for the destination,
 # so we have to wait the parsing to finish to add the edges
@@ -220,14 +220,14 @@ def generateNodesLabel(G):
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
             nx.set_node_attributes(
-                G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac) if not no_oui_lookup else '') +
+                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else '') +
                     str(G.nodes[mac]['value']), "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(
-                G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac) if not no_oui_lookup else '') +
+                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else '') +
                     str(G.nodes[mac]['value']), "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac) if not no_oui_lookup else ''),
+            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else ''),
                     "style": "filled", "fillcolor": REPEATER_C}})
 
 
@@ -459,6 +459,7 @@ def processDataFrame(frame, ts):
 
 
 def processControlFrame(frame, ts):
+    # cannot guess anything from control frames, so delay them
     if frame.subtype == C_RTS:
         delayed_frames["ctl"].append((ts, frame.rts.src.hex(":").upper()))
     elif frame.subtype == C_BLOCK_ACK:
@@ -613,9 +614,9 @@ def parseWithoutRadio(pcap):
 
 @lru_cache(maxsize=None)
 def OUILookup(mac):
-    for mac_o in oui_content:
-        if mac.startswith(mac_o):
-            return oui_content[mac_o]
+    for mac_o in oui_table:
+        if mac == mac_o:
+            return oui_table[mac_o]
     return "Unknown"
 
 
@@ -669,7 +670,7 @@ def generateMultipleGraphs(args):
         print("{} The graph is empty... Cannot generate anything.".format(FINISHED))
         exit(0)
 
-    if args.verbose:
+    if verbose:
         print("{} Removing nodes without any edge...".format(INFO))
 
     G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
@@ -713,7 +714,7 @@ def generateMultipleGraphs(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="Create graphs from pcaps containing IEEE802.11 frames.")
     parser.add_argument("--pcap", "-p", help="pcap/pcapng to parse.", required=True,
             metavar="pcap")
@@ -722,7 +723,7 @@ if __name__ == "__main__":
         "This can used be used as a path to put the file(s) too (e.g. "
         "../../test).", dest="output", required=True, metavar="name")
     parser.add_argument(
-        "--ignore-probe-graph", "-e", help="Don't draw probe responses,"
+        "--no-probe-graph", "-e", help="Don't draw probe responses,"
         "but don't ignore them.",
         dest="no_probe_graph", action="store_true")
     parser.add_argument(
@@ -780,12 +781,12 @@ if __name__ == "__main__":
                 for line in f:
                     elements = line.strip().split("\t")
                     # MAC: NAME
-                    oui_content.update({elements[0]: elements[1]})
+                    oui_table.update({elements[0]: elements[1]})
         except FileNotFoundError:
             print("{} Impossible to open oui.txt, please put this file ".format(FAIL) + \
-                    "in this directory: "
-                    "{}.".format(os.path.dirname(os.path.realpath(__file__))) + \
-                    " Quitting.")
+                    "in this directory: " + 
+                    os.path.dirname(os.path.realpath(__file__)) + \
+                    ". Quitting...")
             exit(1)
 
     # FILTERS
