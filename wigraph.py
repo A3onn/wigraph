@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, with_statement
-
 # colors used when displaying text
 ACTION = "\033[34m[.]\033[0m"
 FINISHED = "\033[92m[O]\033[0m"
@@ -26,6 +24,7 @@ try:
 except ModuleNotFoundError:
     print("{} This program require pygraphviz. Please install it.".format(FAIL))
     exit(1)
+
 import argparse
 import os
 import re
@@ -498,6 +497,7 @@ def parseDelayedFrames():
                 addEdge(frame[1], frame[2], color=DEAUTH_C)
     if verbose:
         print("{} Handling delayed disassociation frames.".format(INFO))
+
     for frame in delayed_frames["disassoc"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -516,6 +516,7 @@ def parseDelayedFrames():
                 addEdge(frame[1], frame[2], color=DISASSOC_C)
     if verbose:
         print("{} Handling delayed action frames.".format(INFO))
+
     for frame in delayed_frames["action"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -533,7 +534,8 @@ def parseDelayedFrames():
             else:
                 addEdge(frame[1], frame[2], color=ACTION_C)
     if verbose:
-        print("{} Handling delayed data frames.".format(INFO))
+        print("{} Handling delayed data frames...".format(INFO))
+
     for frame in delayed_frames["data"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -585,8 +587,10 @@ def parseWithRadio(pcap):
                 pass
 
     if verbose:
-        print("{} Parsing delayed probe requests...".format(INFO))
+        print("{} Parsing delayed frames...".format(INFO))
     parseDelayedFrames()
+    if verbose:
+        print("{} Finished parsing delayed frames...".format(INFO))
 
     return c
 
@@ -783,25 +787,28 @@ if __name__ == "__main__":
     ignore_probe_resp = args.no_probe
     no_probe_graph = args.no_probe_graph
     verbose = args.verbose
-
-    if not args.no_oui_lookup:
+    no_oui_lookup = args.no_oui_lookup
+    
+    # OUI
+    if not no_oui_lookup: # if the --no-oui-lookup is not present
         try:
-            with open(os.path.dirname(os.path.realpath(__file__)) + "/oui.txt", "r") as f:
+            oui_file_path = os.path.dirname(os.path.realpath(__file__)) + "/oui.txt"
+            with open(oui_file_path, "r") as f:
+                if verbose:
+                    print("{} Loading OUI file lookup: {}".format(INFO, oui_file_path))
+
                 for line in f:
                     elements = line.strip().split("\t")
                     # MAC: NAME
                     oui_content.update({elements[0]: elements[1]})
-                    no_oui_lookup = False
         except FileNotFoundError:
             print("{} Impossible to open oui.txt, please put this file ".format(FAIL) + \
                     "in this directory: "
                     "{}.".format(os.path.dirname(os.path.realpath(__file__))) + \
                     " Quitting.")
             exit(1)
-    else:
-        no_oui_lookup = True
 
-    no_oui_lookup = args.no_oui_lookup
+    # FILTERS
     if args.only_mac:
         only_mac = tuple(args.only_mac)
     if args.only_bssid:
@@ -820,10 +827,12 @@ if __name__ == "__main__":
     only_mac = list(map(str.upper, only_mac)) # upper all MACs
     only_bssid = list(map(str.upper, only_bssid)) # upper all bssids
 
+
+    # PCAP
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
-        ("{} File not found: {}".format(FAIL, args.pcap))
+        print("{} File not found: {}".format(FAIL, args.pcap))
         exit(1)
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
