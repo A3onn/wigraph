@@ -1,5 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+from __future__ import print_function, with_statement
 
 # colors used when displaying text
 ACTION = "\033[34m[.]\033[0m"
@@ -9,20 +11,20 @@ FAIL = "\033[91m[X]\033[0m"
 
 # IMPORTS
 try:
-    from dpkt.ieee80211 import * # avoid typing: dpkt.ieee802.11.M_BEACON, etc
+    from dpkt.ieee80211 import * # avoid typing: dpkt.ieee802.11.M_BEACON, etc...
     import dpkt
 except ModuleNotFoundError:
-    print(f"{FAIL} This program require dpkt. Please install it.")
+    print("{} This program require dpkt. Please install it.".format(FAIL))
     exit(1)
 try:
     import networkx as nx
 except ModuleNotFoundError:
-    print(f"{FAIL} This program require networkx. Please install it.")
+    print("{} This program require networkx. Please install it.".format(FAIL))
     exit(1)
 try:
     import pygraphviz # used by networkx to output the graph
 except ModuleNotFoundError:
-    print(f"{FAIL} This program require pygraphviz. Please install it.")
+    print("{} This program require pygraphviz. Please install it.".format(FAIL))
     exit(1)
 import argparse
 import os
@@ -96,35 +98,35 @@ class AP:
 
         ret = ""
         if self.bssid:
-            ret += f"bssid: {self.bssid}\n"
+            ret += "bssid: {}\n".format(self.bssid)
 
         if self.ssid:
-            ret += f"ssid: {self.ssid}\n"
+            ret += "ssid: {}\n".format(self.ssid)
 
         if self.ch != -1:
-            ret += f"channel: {self.ch}\n"
+            ret += "channel: {}\n".format(self.ch)
         
         if self.enc:
-            ret += f"enc: {self.enc}\n"
+            ret += "enc: {}\n".format(self.enc)
             
         if self.auth:
-            ret += f"auth: {', '.join(self.auth)}\n"
+            ret += "auth: {}\n".format(', '.join(self.auth))
             
         if self.cipher:
-            ret += f"cipher: {', '.join(self.cipher)}\n"
+            ret += "cipher: {}\n".format(', '.join(self.cipher))
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
             mandatory_rates = ",".join(map(str, self.rates[0]))
             if mandatory_rates:
-                ret += f"mandatory rates Mbit/s: {mandatory_rates}\n"
+                ret += "mandatory rates Mbit/s: {}\n".format(mandatory_rates)
             optional_rates = ",".join(map(str, self.rates[1]))
             if optional_rates:
-                ret += f"optional rates Mbit/s: {optional_rates}\n"
+                ret += "optional rates Mbit/s: {}\n".format(optional_rates)
 
-        ret += f"# of beacons: {self.beacons}\n" \
-            f"First seen: {time.asctime(time.localtime(self.first_seen))}\n" \
-            f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
+        ret += "# of beacons: {}\n".format(self.beacons) + \
+            "First seen: {}\n".format(time.asctime(time.localtime(self.first_seen))) + \
+            "Last seen: {}\n".format(time.asctime(time.localtime(self.last_seen)))
         return ret
 
     def update(self, other):
@@ -170,13 +172,13 @@ class Client:
         ret = ""
         if self.probes:
             probed = textwrap.fill(",".join(self.probes))
-            ret += f"probed: {probed}\n"
+            ret += "probed: {}\n".format(probed)
 
         if self.data_frames > 0:
-            ret += f"# of data frame: {self.data_frames}\n"
+            ret += "# of data frame: {}\n".format(self.data_frames)
 
-        ret += f"First seen: {time.asctime(time.localtime(self.first_seen))}\n"
-        ret += f"Last seen: {time.asctime(time.localtime(self.last_seen))}"
+        ret += "First seen: {}\n".format(time.asctime(time.localtime(self.first_seen)))
+        ret += "Last seen: {}\n".format(time.asctime(time.localtime(self.last_seen)))
         return ret
 
     def update(self, other):
@@ -216,16 +218,14 @@ def generateNodesLabel(G):
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\n" \
-                    f"{str(G.nodes[mac]['value'])}", "style": "filled",
-                    "fillcolor": AP_C}})
+                G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac) if not no_oui_lookup else '') +
+                    str(G.nodes[mac]['value']), "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(
-                G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\n" \
-                    f"{str(G.nodes[mac]['value'])}",
-                    "style": "filled", "fillcolor": CLIENT_C}})
+                G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac) if not no_oui_lookup else '') +
+                    str(G.nodes[mac]['value']), "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": f"{mac} {OUILookup(mac) if not no_oui_lookup else ''}\nRepeater",
+            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac) if not no_oui_lookup else ''),
                     "style": "filled", "fillcolor": REPEATER_C}})
 
 
@@ -328,7 +328,7 @@ def addEdge(src, dst, color):
 def addAP(mac, ap):
     if mac not in G.nodes:  # if first time seeing ap
         if verbose:
-            print(f"{INFO} Added new AP: {mac}")
+            print("{} Added new AP: {}".format(INFO, mac))
         G.add_node(mac, type=AP_T, value=ap)
     else:  # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T:
@@ -338,14 +338,14 @@ def addAP(mac, ap):
             G.nodes[mac]["value"].update(ap)
         except TypeError:
             if verbose:
-                print(f"{INFO} Marked {mac} as a repeater")
+                print("{} Marked {} as a repeater".format(INFO, mac))
             nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
 
 
 def addClient(mac, client):
     if mac not in G.nodes:  # if first time seeing client
         if verbose:
-            print(f"{INFO} Added new Client: {mac}")
+            print("{} Added new Client: {}".format(INFO, mac))
         G.add_node(mac, type=CLIENT_T, value=client)
     else:  # if not, updating its attributes
         if G.nodes[mac]["type"] == REPEATER_T:
@@ -355,7 +355,7 @@ def addClient(mac, client):
             G.nodes[mac]["value"].update(client)
         except TypeError:
             if verbose:
-                print(f"{INFO} Marked {mac} as a repeater")
+                print("{} Marked {} as a repeater".format(INFO, mac))
             nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
 
 
@@ -467,7 +467,7 @@ def processControlFrame(frame, ts):
 
 def parseDelayedFrames():
     if verbose:
-        print(f"{INFO} Handling delayed control frames.")
+        print("{} Handling delayed control frames.".format(INFO))
     for frame in delayed_frames["ctl"]:
         src = whatIs(frame[1])
         ts = frame[0]
@@ -479,7 +479,7 @@ def parseDelayedFrames():
             addAP(frame[1], AP(ts))
 
     if verbose:
-        print(f"{INFO} Handling delayed deauthentification frames.")
+        print("{} Handling delayed deauthentification frames.".format(INFO))
     for frame in delayed_frames["deauth"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -497,7 +497,7 @@ def parseDelayedFrames():
             else:
                 addEdge(frame[1], frame[2], color=DEAUTH_C)
     if verbose:
-        print(f"{INFO} Handling delayed disassociation frames.")
+        print("{} Handling delayed disassociation frames.".format(INFO))
     for frame in delayed_frames["disassoc"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -515,7 +515,7 @@ def parseDelayedFrames():
             else:
                 addEdge(frame[1], frame[2], color=DISASSOC_C)
     if verbose:
-        print(f"{INFO} Handling delayed action frames.")
+        print("{} Handling delayed action frames.".format(INFO))
     for frame in delayed_frames["action"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -533,7 +533,7 @@ def parseDelayedFrames():
             else:
                 addEdge(frame[1], frame[2], color=ACTION_C)
     if verbose:
-        print(f"{INFO} Handling delayed data frames.")
+        print("{} Handling delayed data frames.".format(INFO))
     for frame in delayed_frames["data"]:
         src = whatIs(frame[1])
         dst = whatIs(frame[2])
@@ -585,7 +585,7 @@ def parseWithRadio(pcap):
                 pass
 
     if verbose:
-        print(f"{INFO} Parsing delayed probe requests...")
+        print("{} Parsing delayed probe requests...".format(INFO))
     parseDelayedFrames()
 
     return c
@@ -621,7 +621,7 @@ def parseWithoutRadio(pcap):
             except:
                 pass
     if verbose:
-        print(f"{INFO} Parsing delayed probe requests...")
+        print("{INFO} Parsing delayed probe requests...".format(INFO))
     parseDelayedFrames()
 
     return c
@@ -657,7 +657,7 @@ def addLegend(g):
 
 def generateGraph(args):
     if len(G.nodes) == 0:
-        print(f"{FINISHED} The graph is empty... Cannot generate anything.")
+        print("{} The graph is empty... Cannot generate anything.".format(FINISHED))
         exit(0)
 
     if args.no_alone_nodes: # remove nodes without edges
@@ -668,25 +668,25 @@ def generateGraph(args):
             if len(G.in_edges(node)) == 0 and len(G.out_edges(node)) == 0:  # if this node doesn't have any edge
                 G.remove_node(node)
 
-    print(f"{ACTION} Generating {args.output}.{args.format} file...")
+    print("{} Generating {}.{} file...".format(ACTION, args.output, args.format))
     generateNodesLabel(G)
 
     if not args.no_legend:
         addLegend(G)
 
     graph = nx.nx_agraph.to_agraph(G)
-    graph.draw(f"{args.output}.{args.format}", prog=args.graph)
+    graph.draw(args.output + "." + args.format, prog=args.graph)
 
-    print(f"{FINISHED} {args.output}.{args.format} generated!")
+    print("{} {}.{} generated!".format(FINISHED, args.output, args.format))
 
 
 def generateMultipleGraphs(args):
     if len(G.nodes) == 0:
-        print(f"{FINISHED} The graph is empty... Cannot generate anything.")
+        print("{} The graph is empty... Cannot generate anything.".format(FINISHED))
         exit(0)
 
     if args.verbose:
-        print(f"{INFO} Removing nodes without any edge...")
+        print("{} Removing nodes without any edge...".format(INFO))
 
     G_null = nx.Graph()  # nodes without edges, don't need a fancy graph
 
@@ -700,22 +700,19 @@ def generateMultipleGraphs(args):
 
     if not args.no_alone:  # if generating alone_nodes graph
         if len(G_null.nodes) > 0:
-            print(f"{ACTION} Generating {args.output}_alone_nodes.{args.format} file...")
+            print("{} Generating {}_alone_nodes.{} file...".format(ACTION, args.output, args.format))
             generateNodesLabel(G_null)
 
             graph = nx.nx_agraph.to_agraph(G_null)
-            graph.draw(f"{args.output}_alone_nodes.{args.format}",
-                    prog=args.graph)
+            graph.draw("{}_alone_nodes.{}".format(args.output, args.format), prog=args.graph)
 
-            print(f"{FINISHED} {args.output}_alone_nodes.{args.format}"
-                "generated!")
+            print("{} {}_alone_nodes.{} generated!".format(FINISHED, args.output, args.format))
 
         else:
-            print(
-                f"{ACTION} All nodes have an edge at least, don't generate " \
-                        f"{args.output}.{args.format} because it's empty.")
+            print("{} All nodes have an edge at least, don't generate ".format(ACTION) + \
+                        "{}.{} because it's empty.".format(args.output, args.format))
 
-    print(f"{ACTION} Generating all subgraphs...")
+    print("{} Generating all subgraphs...".format(ACTION))
     for num_graph, g in enumerate(list(nx.weakly_connected_components(G))):
         # there is no alone nodes as they were removed
 
@@ -724,11 +721,11 @@ def generateMultipleGraphs(args):
 
         if not args.no_legend:
             addLegend(sub)
-        print(f"{ACTION} Generating {args.output}_{num_graph}.{args.format} file...")
+        print("{} Generating {}_{}.{} file...".format(ACTION, args.output, num_graph, args.format))
         graph = nx.nx_agraph.to_agraph(sub)
-        graph.draw(f"{args.output}_{num_graph}.{args.format}", prog=args.graph)
+        graph.draw("{}_{}.{}".format(args.output, num_graph, args.format), prog=args.graph)
 
-        print(f"{FINISHED} {args.output}_{num_graph}.{args.format} generated!")
+        print("{} {}_{}.{} generated!".format(FINISHED, args.output, num_graph, args.format))
 
 
 if __name__ == "__main__":
@@ -796,10 +793,10 @@ if __name__ == "__main__":
                     oui_content.update({elements[0]: elements[1]})
                     no_oui_lookup = False
         except FileNotFoundError:
-            print(f"{FAIL} Impossible to open oui.txt, please put this file "
+            print("{} Impossible to open oui.txt, please put this file ".format(FAIL) + \
                     "in this directory: "
-                    f"{os.path.dirname(os.path.realpath(__file__))}. "
-                    "Quitting.")
+                    "{}.".format(os.path.dirname(os.path.realpath(__file__))) + \
+                    " Quitting.")
             exit(1)
     else:
         no_oui_lookup = True
@@ -814,11 +811,11 @@ if __name__ == "__main__":
     mac_p = re.compile(r"^([0-9A-Fa-f][0-9A-Fa-f]:){5}[0-9A-Fa-f][0-9A-Fa-f]$")
     for bssid in only_bssid:
         if not mac_p.match(bssid):
-            print(f"{FAIL} {bssid} is not a valid BSSID!")
+            print("{} {} is not a valid BSSID!".format(FAIL, bssid))
             exit(1)
     for mac in only_mac:
         if not mac_p.match(mac):
-            print(f"{FAIL} {mac} is not a valid MAC address!")
+            print("{} {} is not a valid MAC address!".format(FAIL, mac))
             exit(1)
     only_mac = list(map(str.upper, only_mac)) # upper all MACs
     only_bssid = list(map(str.upper, only_bssid)) # upper all bssids
@@ -826,7 +823,7 @@ if __name__ == "__main__":
     try:
         raw_pcap = open(args.pcap, "rb")
     except FileNotFoundError:
-        (f"{FAIL} File not found: {args.pcap}")
+        ("{} File not found: {}".format(FAIL, args.pcap))
         exit(1)
     try:
         if args.pcap.endswith(".pcapng") or args.pcap.endswith(".pcap-ng"):
@@ -834,25 +831,25 @@ if __name__ == "__main__":
         else:
             pcap = dpkt.pcap.Reader(raw_pcap)
     except BaseException:
-        print(f"{FAIL} An error occured while reading {args.pcap}.")
+        print("{} An error occured while reading {}.".format(FAIL, args.pcap))
         raw_pcap.close()
         exit(1)
 
     if verbose:
-        print(f"{INFO} Loading {args.pcap} in memory")
+        print("{} Loading {} in memory".format(INFO, args.pcap))
     packets = pcap.readpkts()
     raw_pcap.close()
 
     if pcap.datalink() == dpkt.pcap.DLT_IEEE802_11_RADIO:
-        print(f"{ACTION} Begining of parsing!")
+        print("{} Begining of parsing!".format(ACTION))
         count = parseWithRadio(packets)
-        print(f"{FINISHED} Parsed {count} frames!")
+        print("{} Parsed {} frames!".format(FINISHED, count))
     elif pcap.datalink() == dpkt.pcap.DLT_IEEE802_11:
-        print(f"{ACTION} Begining of parsing!")
+        print("{} Begining of parsing!".format(ACTION))
         count = parseWithoutRadio(packets)
-        print(f"{FINISHED} Parsed {count} frames!")
+        print("{} Parsed {} frames!".format(FINISHED, count))
     else:
-        print(f"{FAIL} Wrong link-layer header type. It should either be " \
+        print("{} Wrong link-layer header type. It should either be ".format(FAIL) + \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
         exit(1)
     del packets  # free some space
