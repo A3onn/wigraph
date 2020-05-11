@@ -825,19 +825,19 @@ if __name__ == "__main__":
         raw_pcap.close()
         exit(1)
 
-    if verbose:
-        print("{} Loading {} in memory".format(INFO, args.pcap))
+    print("{} Loading {} in memory...".format(ACTION, args.pcap))
     packets = pcap.readpkts()
     raw_pcap.close()
+    print("{} Loaded {} packets.".format(ACTION, len(packets)))
 
     if pcap.datalink() == DLT_IEEE802_11_RADIO:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithRadio(packets)
-        print("{} Parsed {} frames!".format(FINISHED, count))
+        print("{} Parsed {} frames out of {}!".format(FINISHED, count, len(packets)))
     elif pcap.datalink() == DLT_IEEE802_11:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithoutRadio(packets)
-        print("{} Parsed {} frames!".format(FINISHED, count))
+        print("{} Parsed {} frames out of {}!".format(FINISHED, count, len(packets)))
     else:
         print("{} Wrong link-layer header type. It should either be ".format(FAIL) + \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
