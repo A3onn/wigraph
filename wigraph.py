@@ -112,10 +112,10 @@ class AP:
             ret += "enc: {}\n".format(self.enc)
             
         if self.auth:
-            ret += "auth: {}\n".format(', '.join(self.auth))
+            ret += "auth: {}\n".format(", ".join(self.auth))
             
         if self.cipher:
-            ret += "cipher: {}\n".format(', '.join(self.cipher))
+            ret += "cipher: {}\n".format(", ".join(self.cipher))
 
         if len(self.rates) != 0:  # if we know its rates
             # [int] -> [str] with map
@@ -220,14 +220,14 @@ def generateNodesLabel(G):
     for mac in G.nodes:
         if G.nodes[mac]["type"] == AP_T:
             nx.set_node_attributes(
-                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else '') +
-                    str(G.nodes[mac]['value']), "style": "filled", "fillcolor": AP_C}})
+                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") +
+                    str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": AP_C}})
         elif G.nodes[mac]["type"] == CLIENT_T:
             nx.set_node_attributes(
-                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else '') +
-                    str(G.nodes[mac]['value']), "style": "filled", "fillcolor": CLIENT_C}})
+                    G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") +
+                    str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else ''),
+            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") + str(G.nodes[mac]["value"]),
                     "style": "filled", "fillcolor": REPEATER_C}})
 
 
@@ -341,7 +341,7 @@ def addAP(mac, ap):
         except TypeError:
             if verbose:
                 print("{} Marked {} as a repeater".format(INFO, mac))
-            nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
+            nx.set_node_attributes(G, {mac: {"type": REPEATER_T}})
 
 
 def addClient(mac, client):
@@ -358,7 +358,7 @@ def addClient(mac, client):
         except TypeError:
             if verbose:
                 print("{} Marked {} as a repeater".format(INFO, mac))
-            nx.set_node_attributes(G, {mac: {'type': REPEATER_T}})
+            nx.set_node_attributes(G, {mac: {"type": REPEATER_T}})
 
 
 def processManagementFrame(frame, ts):
@@ -734,12 +734,12 @@ if __name__ == "__main__":
         choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "gif"],
         default="png", metavar="format")
     parser.add_argument("--only-mac", "-m", help="Filter for MAC address. Separate them with space.",
-        dest="only_mac", nargs='+', action="store",
+        dest="only_mac", nargs="+", action="store",
         metavar="MACs")
     parser.add_argument("--no-legend", "-l", help="Don't add a legend.",
         dest="no_legend", action="store_true")
     parser.add_argument("--only-bssid", "-b", help="Filter for BSSIDs. Separate them with space.",
-        dest="only_bssid", nargs='+', action="store",
+        dest="only_bssid", nargs="+", action="store",
         metavar="BSSIDs")
     parser.add_argument(
         "--no-alone-graph", "-a",
