@@ -730,7 +730,7 @@ if __name__ == "__main__":
         "--ignore-probe", "-i", help="Ignore probe responses.",
         dest="no_probe", action="store_true")
     parser.add_argument(
-        "--format", "-f", help="Output file's format.", dest="format",
+            "--format", "-f", help="Output file's format, it can be : pdf, jpg, png, dot, ps, svg, svgz or gif.", dest="format",
         choices=["pdf", "jpg", "png", "dot", "ps", "svg", "svgz", "gif"],
         default="png", metavar="format")
     parser.add_argument("--only-mac", "-m", help="Filter for MAC address. Separate them with space.",
@@ -760,15 +760,24 @@ if __name__ == "__main__":
         "--no-oui-lookup", "-k", help="Don't make OUI lookup for MAC addresses.",
         dest="no_oui_lookup", action="store_true")
     parser.add_argument(
-        "--graph", "-g", help="Graphviz program to use", dest="graph",
+            "--graph", "-g", help="Graphviz program to use, it can be: dot, neato, twopi, circo, fdp or sfdp.", dest="graph",
         choices=["dot", "neato", "twopi", "circo", "fdp", "sfdp"],
         default="sfdp", metavar="prog")
+    parser.add_argument(
+        "--no-color", "-c", help="Don't use color when outputing on the console.",
+        dest="no_color", action="store_true")
     args = parser.parse_args()
 
     ignore_probe_resp = args.no_probe
     no_probe_graph = args.no_probe_graph
     verbose = args.verbose
     no_oui_lookup = args.no_oui_lookup
+
+    if args.no_color:
+        ACTION = "[.]"
+        FINISHED = "[O]"
+        INFO = "[i]"
+        FAIL = "[X]"
     
     # OUI
     if not no_oui_lookup: # if the --no-oui-lookup is not present
@@ -827,17 +836,19 @@ if __name__ == "__main__":
 
     print("{} Loading {} in memory...".format(ACTION, args.pcap))
     packets = pcap.readpkts()
+    count_packets = len(packets)
+    packets = iter(packets)
     raw_pcap.close()
-    print("{} Loaded {} packets.".format(ACTION, len(packets)))
+    print("{} Loaded {} packets.".format(ACTION, count_packets))
 
     if pcap.datalink() == DLT_IEEE802_11_RADIO:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithRadio(packets)
-        print("{} Parsed {} frames out of {}!".format(FINISHED, count, len(packets)))
+        print("{} Parsed {} frames out of {}!".format(FINISHED, count, count_packets))
     elif pcap.datalink() == DLT_IEEE802_11:
         print("{} Begining of parsing!".format(ACTION))
         count = parseWithoutRadio(packets)
-        print("{} Parsed {} frames out of {}!".format(FINISHED, count, len(packets)))
+        print("{} Parsed {} frames out of {}!".format(FINISHED, count, count_packets))
     else:
         print("{} Wrong link-layer header type. It should either be ".format(FAIL) + \
                 "LINKTYPE_IEEE802_11 or LINKTYPE_IEEE802_11_RADIOTAP.")
