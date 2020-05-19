@@ -4,16 +4,6 @@
 
 #### A simple to use program to visualise what's happening in a PCAP containing IEEE802.11 frames.
 
-### Dependencies
-
-WiGraph required some dependencies:
-- `dpkt` to parse frames
-- `networkx` to represent the graph in memory and drawing it to a file
-
-You can install theses dependencies automatically by using the `requirements.txt` file :
-
-`pip install -r requirements.txt`
-
 ## Usage
 
 To create a graph:
@@ -21,6 +11,8 @@ To create a graph:
 `./wigraph.py -p <pcap file> -o <output name w/o extension>`
 
 This is the base command, you can use other parameters as well.
+
+Wigraph can parse PCAP __and__ PCAP-NG files.
 
 #### Format
 
@@ -71,6 +63,17 @@ Here is an exemple using the [Network_Join_Nokia_Mobile.pcap](https://wiki.wires
 It was generated with:
 
 `./wigraph.py -p Network_Join_Nokia_Mobile.pcap -o exemple.png`
+
+
+### Dependencies
+
+WiGraph required some dependencies:
+- `dpkt` to parse frames
+- `networkx` to represent the graph in memory and drawing it to a file
+
+You can install theses dependencies automatically by using the `requirements.txt` file :
+
+`pip install -r requirements.txt`
 
 
 ## Disclamer
