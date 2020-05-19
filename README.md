@@ -12,7 +12,7 @@ To create a graph:
 
 This is the base command, you can use other parameters as well.
 
-Wigraph can parse PCAP __and__ PCAP-NG files.
+Note that Wigraph can parse PCAP __and__ PCAP-NG files.
 
 #### Format
 
