@@ -1,6 +1,6 @@
 # WiGraph
 
-![Wigraph logo](images/logo-medium.png)
+![WiGraph logo](images/logo-medium.png)
 
 #### A simple to use program to visualise what's happening in a PCAP containing IEEE802.11 frames.
 
@@ -12,7 +12,7 @@ To create a graph:
 
 This is the base command, you can use other parameters as well.
 
-Note that Wigraph can parse PCAP __and__ PCAP-NG files.
+Note that WiGraph can parse PCAP __and__ PCAP-NG files.
 
 #### Format
 
