@@ -69,7 +69,8 @@ It was generated with:
 
 WiGraph required some dependencies:
 - `dpkt` to parse frames
-- `networkx` to represent the graph in memory and drawing it to a file
+- `networkx` to represent the graph in memory
+- `pygraphviz` to output to a file
 
 You can install theses dependencies automatically by using the `requirements.txt` file :
 
