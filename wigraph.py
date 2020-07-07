@@ -227,7 +227,7 @@ def generateNodesLabel(G):
                     G, {mac: {"label": "{} {}\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") +
                     str(G.nodes[mac]["value"]), "style": "filled", "fillcolor": CLIENT_C}})
         elif G.nodes[mac]["type"] == REPEATER_T:
-            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") + str(G.nodes[mac]["value"]),
+            nx.set_node_attributes(G, {mac: {"label": "{} {}\nRepeater\n".format(mac, OUILookup(mac[:8]) if not no_oui_lookup else "") + str(G.nodes[mac]["value"]),
                     "style": "filled", "fillcolor": REPEATER_C}})
 
 
@@ -723,7 +723,7 @@ if __name__ == "__main__":
         "This can used be used as a path to put the file(s) too (e.g. "
         "../../test).", dest="output", required=True, metavar="name")
     parser.add_argument(
-        "--no-probe-graph", "-e", help="Don't draw probe responses,"
+        "--no-probe-graph", "-e", help="Don't draw probe responses, "
         "but don't ignore them.",
         dest="no_probe_graph", action="store_true")
     parser.add_argument(
