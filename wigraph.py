@@ -625,7 +625,7 @@ def parseWithoutRadio(pcap):
                 pass
 
     if verbose:
-        print("{INFO} Parsing delayed probe requests...".format(INFO))
+        print("{} Parsing delayed probe requests...".format(INFO))
     parseDelayedFrames()
 
     return c
